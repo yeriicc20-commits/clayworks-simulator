@@ -30,6 +30,11 @@ public class ArcadeBlink : MonoBehaviour
     [Tooltip("Brillo en el pico.")]
     public float maximo = 2.6f;
 
+    [Tooltip("Que material del renderer se ilumina. -1 = todos. Se usa cuando "
+             + "la pieza trae varios materiales, como el joystick, que es vastago "
+             + "y bola en una sola malla: sin esto se encenderia entero.")]
+    public int materialIndex = -1;
+
     [Tooltip("Si esta encendida, cada mando arranca en un punto distinto del "
              + "ciclo. Sin esto una fila de maquinas parpadea a la vez y parece "
              + "un estroboscopio en vez de una sala de recreativos.")]
@@ -54,11 +59,12 @@ public class ArcadeBlink : MonoBehaviour
         // El material tiene que traer la emision habilitada o el shader ignora
         // _EmissionColor por mucho que se lo escribamos. Se hace sobre el
         // material compartido a proposito: es una vez y vale para todas.
-        if (rend != null && rend.sharedMaterial != null)
+        Material objetivo = MaterialObjetivo();
+
+        if (objetivo != null)
         {
-            rend.sharedMaterial.EnableKeyword("_EMISSION");
-            rend.sharedMaterial.globalIlluminationFlags =
-                MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            objetivo.EnableKeyword("_EMISSION");
+            objetivo.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
         }
 
         Aplicar(minimo);
@@ -87,9 +93,36 @@ public class ArcadeBlink : MonoBehaviour
     {
         if (rend == null) return;
 
-        rend.GetPropertyBlock(bloque);
+        int i = Indice();
+
+        if (i < 0) rend.GetPropertyBlock(bloque);
+        else rend.GetPropertyBlock(bloque, i);
+
         bloque.SetColor(ID_EMISION, color * intensidad);
         bloque.SetColor(ID_BASE, color);
-        rend.SetPropertyBlock(bloque);
+
+        if (i < 0) rend.SetPropertyBlock(bloque);
+        else rend.SetPropertyBlock(bloque, i);
+    }
+
+    // -1 si hay que iluminar el renderer entero; si no, la submalla pedida,
+    // siempre que exista de verdad.
+    int Indice()
+    {
+        if (materialIndex < 0) return -1;
+
+        Material[] mats = rend.sharedMaterials;
+        return materialIndex < mats.Length ? materialIndex : -1;
+    }
+
+    Material MaterialObjetivo()
+    {
+        if (rend == null) return null;
+
+        Material[] mats = rend.sharedMaterials;
+        if (mats.Length == 0) return null;
+
+        int i = Indice();
+        return i < 0 ? mats[0] : mats[i];
     }
 }
