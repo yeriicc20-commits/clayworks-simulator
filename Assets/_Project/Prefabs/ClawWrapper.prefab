@@ -4608,9 +4608,9 @@ MonoBehaviour:
   armDeceleration: 5
   detectionRadius: 0.24
   detectionHeightOffset: 0.16
-  gripHeightOffset: 0.016
+  gripHeightOffset: 0.05
   minDescentBeforeStop: 0.04
-  fingerCloseAngle: -70
+  fingerCloseAngle: -48
   fingerSpeed: 85
   minAngleBeforeContactCheck: 5
   fingerContactDistance: 0.016
@@ -4639,7 +4639,7 @@ MonoBehaviour:
   gripForcePlayerMax: 10
   gripForceNPCMin: 1
   gripForceNPCMax: 3
-  forceNewtonsPerUnit: 22
+  forceNewtonsPerUnit: 1
   breakForceMultiplier: 1.3
   currentGripForceRating: 0
   slipExtraCloseAngle: 15

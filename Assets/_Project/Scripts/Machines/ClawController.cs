@@ -1742,6 +1742,9 @@ public class ClawController : MonoBehaviour
 
         Vector3 point = reference.position + Vector3.up * toyDropHeight;
 
+        // El punto de reserva tambien por debajo del techo.
+        point.y = Mathf.Min(point.y, MachineBounds.max.y - toyBoundsMargin * 2f);
+
         for (int attempt = 0; attempt < 12; attempt++)
         {
             Vector3 candidate = RandomPlayAreaPoint(reference);
@@ -1774,10 +1777,25 @@ public class ClawController : MonoBehaviour
         float halfX = (limitXMax - limitXMin) * 0.5f * toyScatterSpread;
         float halfZ = (limitZMax - limitZMin) * 0.5f * toyScatterSpread;
 
-        Vector3 offset = railX.parent.TransformVector(new Vector3(Random.Range(-halfX, halfX), 0f, 0f))
-                       + railZ.parent.TransformVector(new Vector3(0f, 0f, Random.Range(-halfZ, halfZ)));
+        // Se parte de donde esta la garra AHORA, no de un punto suelto.
+        //
+        // La garra esta dentro del cristal por definicion, y el desplazamiento
+        // que se le suma es exactamente el que haria el carro para llegar a ese
+        // punto. Asi el resultado es siempre un sitio al que la garra puede ir,
+        // o sea, dentro. Antes partia de toySpawnPoint y recortaba contra la
+        // caja EXTERIOR del mueble, que es mas grande que el hueco de cristal:
+        // por eso seguian apareciendo peluches fuera.
+        Vector3 basePoint = hingePoint != null ? hingePoint.position : reference.position;
 
-        Vector3 point = reference.position + offset + Vector3.up * toyDropHeight;
+        float dx = Random.Range(-halfX, halfX) + centerX - railX.localPosition.x;
+        float dz = Random.Range(-halfZ, halfZ) + centerZ - railZ.localPosition.z;
+
+        Vector3 offset = railX.parent.TransformVector(new Vector3(dx, 0f, 0f))
+                       + railZ.parent.TransformVector(new Vector3(0f, 0f, dz));
+
+        Vector3 point = basePoint + offset;
+
+        point.y = reference.position.y + toyDropHeight;
 
         // Red de seguridad: pase lo que pase con las cuentas, dentro de la
         // maquina. Si el punto de suelta no estuviera centrado en el area, el
@@ -1787,6 +1805,11 @@ public class ClawController : MonoBehaviour
 
         point.x = Mathf.Clamp(point.x, inside.min.x, inside.max.x);
         point.z = Mathf.Clamp(point.z, inside.min.z, inside.max.z);
+
+        // Y sobre todo por debajo del techo. Antes solo recortaba en horizontal,
+        // asi que un peluche soltado desde arriba podia aparecer sobre el tejado
+        // de la maquina y quedarse ahi encima, fuera del cristal.
+        point.y = Mathf.Min(point.y, inside.max.y);
 
         return point;
     }

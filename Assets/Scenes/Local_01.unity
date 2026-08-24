@@ -369,6 +369,63 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 230423458}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1001 &247443994
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: af71262cd8ed4f34b9d02c8bb6dd7e13, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 262.19
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: af71262cd8ed4f34b9d02c8bb6dd7e13, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 112.641
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: af71262cd8ed4f34b9d02c8bb6dd7e13, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0.422
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: af71262cd8ed4f34b9d02c8bb6dd7e13, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: af71262cd8ed4f34b9d02c8bb6dd7e13, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: af71262cd8ed4f34b9d02c8bb6dd7e13, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: af71262cd8ed4f34b9d02c8bb6dd7e13, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: af71262cd8ed4f34b9d02c8bb6dd7e13, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: af71262cd8ed4f34b9d02c8bb6dd7e13, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: af71262cd8ed4f34b9d02c8bb6dd7e13, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: af71262cd8ed4f34b9d02c8bb6dd7e13, type: 3}
+      propertyPath: m_Name
+      value: MaquinaGarra
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: af71262cd8ed4f34b9d02c8bb6dd7e13, type: 3}
 --- !u!1 &254280122
 GameObject:
   m_ObjectHideFlags: 0
@@ -1795,6 +1852,63 @@ Canvas:
   m_SortingLayerID: 0
   m_SortingOrder: 0
   m_TargetDisplay: 0
+--- !u!1001 &1217755103
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 4126493116671731292, guid: fff801a4c5d788b448b689768b8775a0, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -20.4
+      objectReference: {fileID: 0}
+    - target: {fileID: 4126493116671731292, guid: fff801a4c5d788b448b689768b8775a0, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.063
+      objectReference: {fileID: 0}
+    - target: {fileID: 4126493116671731292, guid: fff801a4c5d788b448b689768b8775a0, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -6.77
+      objectReference: {fileID: 0}
+    - target: {fileID: 4126493116671731292, guid: fff801a4c5d788b448b689768b8775a0, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4126493116671731292, guid: fff801a4c5d788b448b689768b8775a0, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4126493116671731292, guid: fff801a4c5d788b448b689768b8775a0, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4126493116671731292, guid: fff801a4c5d788b448b689768b8775a0, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4126493116671731292, guid: fff801a4c5d788b448b689768b8775a0, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4126493116671731292, guid: fff801a4c5d788b448b689768b8775a0, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4126493116671731292, guid: fff801a4c5d788b448b689768b8775a0, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5192221986323269747, guid: fff801a4c5d788b448b689768b8775a0, type: 3}
+      propertyPath: m_Name
+      value: ClawWrapper
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: fff801a4c5d788b448b689768b8775a0, type: 3}
 --- !u!1 &1488793889
 GameObject:
   m_ObjectHideFlags: 0
@@ -1874,6 +1988,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::InteractionUI
   promptRoot: {fileID: 254280122}
   promptTextComponent: {fileID: 254280123}
+  bottomOffset: 120
+  fontSize: 20
+  showBackdrop: 1
+  backdropColor: {r: 0, g: 0, b: 0, a: 0.55}
+  backdropPadding: {x: 22, y: 10}
 --- !u!114 &1584250895
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1960,6 +2079,7 @@ MonoBehaviour:
   toyBoxPrefab: {fileID: 973004227211, guid: e81af81be9072b43b664300a5aebe02e, type: 3}
   itemsContainer: {fileID: 2124879219}
   itemCardPrefab: {fileID: 7003124304064987321, guid: 53edf1260e75c2b448e987e819c3cd53, type: 3}
+  convexVertexLimit: 255
 --- !u!114 &1584250899
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2404,6 +2524,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 837de04989bf8c04aa84693a7a6e1f9b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TestInput
+  avisos: 0
 --- !u!4 &1954603576
 Transform:
   m_ObjectHideFlags: 0
@@ -2888,8 +3009,8 @@ MonoBehaviour:
   minInterval: 5
   maxInterval: 10
   maxActiveNPCs: 6
-  requireMachines: 0
   onlyDuringOpenHours: 1
+  diagnostico: 0
 --- !u!114 &9700480120915
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5882,3 +6003,5 @@ SceneRoots:
   - {fileID: 920002576631687}
   - {fileID: 94000221417412}
   - {fileID: 9600011417368}
+  - {fileID: 1217755103}
+  - {fileID: 247443994}
