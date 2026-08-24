@@ -6,8 +6,8 @@ public class PlushItem : MonoBehaviour
 
     public WeightCategory weightCategory = WeightCategory.Medio;
 
-    [Tooltip("Por encima de estos vertices se usa una primitiva en vez de la malla.")]
-    public int convexVertexLimit = 255;
+    [Tooltip("Cuanto se encoge el collider respecto a lo que se ve. Un peluche es blando.")]
+    [Range(0.6f, 1f)] public float colliderShrink = 0.82f;
 
     [Tooltip("Material fisico del peluche: friccion alta y sin rebote.")]
     public PhysicsMaterial physicsMaterial;
@@ -45,60 +45,54 @@ public class PlushItem : MonoBehaviour
         }
     }
 
+    // UN collider para todo el peluche, medido de lo que se ve.
+    //
+    // Antes se le ponia uno por malla, y ahi estaba el fallo: las mallas de
+    // estos modelos son varios trozos repartidos por el muneco, asi que la caja
+    // de cada una abarcaba el peluche entero. Cuatro cajas grandes solapadas =
+    // un cubo invisible alrededor, y los peluches flotando sin tocarse.
+    //
+    // Un peluche no necesita colision por piezas: lo que decide como se apilan
+    // es su volumen general. Uno solo es ademas cuatro veces mas barato, que
+    // con veinte dentro de la maquina se nota.
     void EnsureAccurateColliders()
     {
-        MeshFilter[] meshFilters = GetComponentsInChildren<MeshFilter>();
-        foreach (MeshFilter mf in meshFilters)
+        if (GetComponent<Collider>() != null) return;
+
+        Renderer[] renderers = GetComponentsInChildren<Renderer>();
+
+        Bounds combined = new Bounds();
+        bool any = false;
+
+        foreach (Renderer rend in renderers)
         {
-            AddCollider(mf.gameObject, mf.sharedMesh);
+            if (rend == null || rend is ParticleSystemRenderer) continue;
+
+            if (!any)
+            {
+                combined = rend.bounds;
+                any = true;
+            }
+            else
+            {
+                combined.Encapsulate(rend.bounds);
+            }
         }
 
-        SkinnedMeshRenderer[] skinnedRenderers = GetComponentsInChildren<SkinnedMeshRenderer>();
-        foreach (SkinnedMeshRenderer smr in skinnedRenderers)
-        {
-            AddCollider(smr.gameObject, smr.sharedMesh);
-        }
-    }
+        if (!any) return;
 
-    // PhysX no sabe hacer un casco convexo de mas de 255 poligonos: con mallas
-    // mas finas se inventa una aproximacion y avisa por consola. En esos casos
-    // se pone una primitiva a la medida de la malla, que ademas es mas barata.
-    //
-    // Un peluche no necesita colision exacta: la garra lo detecta por su propio
-    // radio, y el collider solo decide como se apilan unos sobre otros.
-    void AddCollider(GameObject target, Mesh mesh)
-    {
-        if (mesh == null || target.GetComponent<Collider>() != null) return;
+        BoxCollider box = gameObject.AddComponent<BoxCollider>();
 
-        if (mesh.vertexCount <= convexVertexLimit)
-        {
-            MeshCollider meshCollider = target.AddComponent<MeshCollider>();
-            meshCollider.sharedMesh = mesh;
-            meshCollider.convex = true;
-            meshCollider.sharedMaterial = physicsMaterial;
-            return;
-        }
+        box.center = transform.InverseTransformPoint(combined.center);
 
-        Bounds bounds = mesh.bounds;
-        Vector3 size = bounds.size;
+        // Encogido a proposito. Un peluche es blando: se aplasta un poco al
+        // apoyarse, y con el collider justo a su silueta se ven separados por
+        // un hueco. Encogerlo les hace parecer que se tocan y se hunden un
+        // poco unos en otros, que es lo que hace un monton de peluches.
+        Vector3 size = transform.InverseTransformVector(combined.size);
 
-        float largest = Mathf.Max(size.x, Mathf.Max(size.y, size.z));
-        float smallest = Mathf.Min(size.x, Mathf.Min(size.y, size.z));
+        box.size = new Vector3(Mathf.Abs(size.x), Mathf.Abs(size.y), Mathf.Abs(size.z)) * colliderShrink;
 
-        // Los peluches son bolas y la esfera les sienta mejor que la caja, pero
-        // si la pieza es alargada la caja se ajusta mucho mas.
-        if (smallest > 0f && largest / smallest < 1.6f)
-        {
-            SphereCollider sphere = target.AddComponent<SphereCollider>();
-            sphere.center = bounds.center;
-            sphere.radius = largest * 0.5f;
-            sphere.sharedMaterial = physicsMaterial;
-            return;
-        }
-
-        BoxCollider box = target.AddComponent<BoxCollider>();
-        box.center = bounds.center;
-        box.size = size;
         box.sharedMaterial = physicsMaterial;
     }
 

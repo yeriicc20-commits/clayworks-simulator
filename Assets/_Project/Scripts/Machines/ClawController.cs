@@ -88,13 +88,45 @@ public class ClawController : MonoBehaviour
     public float slipExtraCloseAngle = 15f;
     public float slipCloseSpeed = 40f;
 
+    [Header("Reparto de peluches al llenar")]
+    [Tooltip("Que parte del area de juego se usa. 1 = de pared a pared.")]
+    [Range(0.2f, 1f)] public float toyScatterSpread = 0.55f;
+    [Tooltip("Desde que altura caen, por encima del punto de suelta.")]
+    public float toyDropHeight = 0.2f;
+    [Tooltip("Radio alrededor de la boca del premio donde no se sueltan.")]
+    public float prizeZoneClearance = 0.3f;
+    [Tooltip("Margen minimo con las paredes de la maquina, en metros.")]
+    public float toyBoundsMargin = 0.12f;
+
     [Header("Viaje a zona de premio")]
     public float prizeTravelSpeed = 0.6f;
     [Tooltip("Margen para que el premio caiga por la rampa antes de retirarlo.")]
     public float prizeDeliverDelay = 1.5f;
     public int fallbackPrizeReward = 20;
 
-    [Header("Balanceo (Swing)")]
+    [Header("Cable fisico")]
+    // Apagado a proposito. El cable fisico necesita que la garra sea antes un
+    // conjunto articulado: su pivote esta a metros de la garra visible y varios
+    // dedos no tienen collider, asi que su masa esta mal repartida y no hay
+    // muelle que lo arregle. Se enciende en el paso 5, con los dedos ya hechos.
+    [Tooltip("Cuelga la cabeza de una articulacion real. Requiere dedos articulados (paso 5).")]
+    public bool usePhysicalCable = false;
+    [Tooltip("Masa de la cabeza en kg. Debe ser del mismo orden que el peluche.")]
+    public float headMass = 1.5f;
+    [Tooltip("Cable mas corto posible, con la garra recogida del todo.")]
+    public float minCableLength = 0.05f;
+    [Tooltip("Rigidez con la que vuelve a la vertical. Mas alto = menos se inclina.")]
+    public float uprightSpring = 18f;
+    [Tooltip("Cuanto se le va el balanceo. Mas alto = se para antes.")]
+    public float uprightDamper = 9f;
+    [Tooltip("Frena el pendulo. 0 = se balancea eternamente.")]
+    public float headLinearDamping = 1.4f;
+    [Tooltip("A que distancia por debajo del cable cuelga el peso. Mas alto = se inclina mas despacio y mas amplio.")]
+    public float comDropBelowCable = 0.18f;
+    [Tooltip("Collider mas grande que se le permite a una pieza de la garra, en metros.")]
+    public float maxClawColliderSize = 0.35f;
+
+    [Header("Balanceo (Swing) - sustituido por el cable fisico")]
     public bool enableSwing = true;
     public float swingStiffness = 30f;
     public float swingDamping = 5f;
@@ -267,6 +299,10 @@ public class ClawController : MonoBehaviour
     private FixedJoint currentJoint;
     private Rigidbody clawHeadRb;
     private Rigidbody carriageRb;
+    private ConfigurableJoint cableJoint;
+    private Vector3 cableAnchorLocal;
+    private float cableBaseLength;
+    private Vector3 cableEndLocal;
     private Collider lastTouchedPlushCollider;
     private Rigidbody heldPlushRb;
     private float[] currentFingerAngle;
@@ -317,6 +353,10 @@ public class ClawController : MonoBehaviour
 
         lastRailPosForSwing = new Vector3(railX.localPosition.x, 0f, railZ.localPosition.z);
         armBaseLocalPos = clawArm.localPosition;
+
+        // Despues de guardar la posicion base: desengancha la cabeza y la cuelga.
+        EnsureClawColliders();
+        SetUpCable();
 
         currentFingerAngle = new float[fingers.Length];
         fingerRotationAxis = new Vector3[fingers.Length];
@@ -468,6 +508,17 @@ public class ClawController : MonoBehaviour
 
     void ApplyArmPosition()
     {
+        // Con cable fisico no se toca el transform: la cabeza cuelga y la fisica
+        // decide donde queda. Aqui solo se le dice cuanto cable hay soltado.
+        //
+        // El UpdateSwing de antes simulaba el balanceo a mano y ahora sobra: si
+        // siguiera activo tendriamos dos sistemas moviendo la misma cabeza.
+        if (cableJoint != null)
+        {
+            ApplyCableLength();
+            return;
+        }
+
         if (enableSwing)
         {
             UpdateSwing();
@@ -580,6 +631,154 @@ public class ClawController : MonoBehaviour
         // Especulativo: es el modo continuo que funciona en cuerpos cinematicos
         // y evita que el carro atraviese un peluche en un solo paso.
         carriageRb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+    }
+
+    // Cuelga la cabeza del carro con una articulacion real.
+    //
+    // Lo primero es desengancharla del carro en la jerarquia: un Rigidbody
+    // dinamico no puede ser hijo de un transform que se mueve, porque tendrias
+    // al carro moviendolo por transform y a la fisica moviendolo por fuerzas al
+    // mismo tiempo. De ahi salen los tirones y las explosiones.
+    //
+    // La articulacion tiene los tres ejes lineales limitados a la misma
+    // distancia, que es exactamente una cuerda: la cabeza puede pendular por
+    // donde quiera dentro de una esfera, pero no alejarse mas. Y bajar la garra
+    // se reduce a agrandar esa esfera. Un torno de verdad, con un cuerpo y una
+    // articulacion, en vez de quince segmentos encadenados.
+    void SetUpCable()
+    {
+        if (!usePhysicalCable || clawArm == null || carriageRb == null) return;
+
+        // El cable cuelga de la placa de arriba, no de la propia cabeza.
+        //
+        // Anclarlo en la cabeza daba un cable de 5 cm, y un pendulo de 5 cm
+        // oscila a mas de 2 veces por segundo con un recorrido minusculo: era
+        // justo el "se balancea poco pero muy rapido". La frecuencia de un
+        // pendulo solo depende de su longitud, asi que la unica forma de que se
+        // balancee despacio y amplio es que el cable mida lo que mide de verdad.
+        Transform anchor = swingAnchor != null ? swingAnchor : railZ;
+
+        // El cable acaba en la bola de la garra, no en el pivote del objeto.
+        // Ese pivote esta a metros de distancia del sitio donde cuelga de
+        // verdad, asi que medir hasta el daba un cable de tres metros y la
+        // garra se iba al suelo. Se mide hasta hingePoint y la articulacion se
+        // ancla ahi mismo, que es la geometria real del cable.
+        Transform cableEnd = hingePoint != null ? hingePoint : clawArm;
+
+        cableAnchorLocal = railZ.InverseTransformPoint(anchor.position);
+        cableEndLocal = clawArm.InverseTransformPoint(cableEnd.position);
+        cableBaseLength = Vector3.Distance(anchor.position, cableEnd.position);
+
+        clawArm.SetParent(transform, true);
+
+        clawHeadRb.isKinematic = false;
+        clawHeadRb.useGravity = true;
+        clawHeadRb.mass = headMass;
+        clawHeadRb.linearDamping = headLinearDamping;
+        clawHeadRb.angularDamping = 3f;
+        clawHeadRb.interpolation = RigidbodyInterpolation.Interpolate;
+        clawHeadRb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+
+        // El centro de masa, colgando por debajo del enganche del cable.
+        //
+        // Esto es lo que hace que la garra se INCLINE en vez de ir tiesa. Un
+        // pendulo se ladea porque su peso esta por debajo del punto del que
+        // cuelga: al frenar, la inercia le da la vuelta alrededor de ese punto.
+        //
+        // Sin esto, Unity le calcula el centro de masa a partir de sus
+        // colliders, y si algun dedo se quedo sin collider acaba en el pivote
+        // del objeto, que en este modelo esta a metros de la garra. Entonces
+        // gira sobre un punto que no tiene nada que ver y se ve rarisimo.
+        clawHeadRb.centerOfMass = cableEndLocal
+            + clawArm.InverseTransformDirection(Vector3.down) * comDropBelowCable;
+
+        cableJoint = clawArm.gameObject.AddComponent<ConfigurableJoint>();
+        cableJoint.connectedBody = carriageRb;
+        cableJoint.autoConfigureConnectedAnchor = false;
+        cableJoint.anchor = cableEndLocal;
+        cableJoint.connectedAnchor = cableAnchorLocal;
+
+        cableJoint.xMotion = ConfigurableJointMotion.Limited;
+        cableJoint.yMotion = ConfigurableJointMotion.Limited;
+        cableJoint.zMotion = ConfigurableJointMotion.Limited;
+
+        cableJoint.angularXMotion = ConfigurableJointMotion.Free;
+        cableJoint.angularYMotion = ConfigurableJointMotion.Free;
+        cableJoint.angularZMotion = ConfigurableJointMotion.Free;
+
+        // Un muelle que la devuelve a la vertical. Una garra colgada se inclina
+        // al acelerar y vuelve sola; no da vueltas de campana.
+        cableJoint.rotationDriveMode = RotationDriveMode.Slerp;
+
+        JointDrive upright = new JointDrive();
+        upright.positionSpring = uprightSpring;
+        upright.positionDamper = uprightDamper;
+        upright.maximumForce = Mathf.Infinity;
+
+        cableJoint.slerpDrive = upright;
+        cableJoint.targetRotation = Quaternion.identity;
+
+        ApplyCableLength();
+    }
+
+    // Los dedos no tenian ningun collider: el agarre funcionaba solo con
+    // consultas de solapamiento, asi que la garra atravesaba los peluches sin
+    // moverlos. Aqui se les pone uno a cada pieza, medido de su propia malla.
+    //
+    // Con la cabeza ya colgando de la articulacion, esto cierra el circulo: la
+    // garra empuja el peluche al chocar, y el golpe la hace balancearse a ella.
+    void EnsureClawColliders()
+    {
+        AddPieceCollider(clawArm);
+
+        if (fingers == null) return;
+
+        foreach (Transform finger in fingers) AddPieceCollider(finger);
+    }
+
+    void AddPieceCollider(Transform piece)
+    {
+        if (piece == null) return;
+
+        foreach (Renderer rend in piece.GetComponentsInChildren<Renderer>())
+        {
+            if (rend == null || rend is LineRenderer) continue;
+            if (rend.GetComponent<Collider>() != null) continue;
+
+            MeshFilter filter = rend.GetComponent<MeshFilter>();
+            if (filter == null || filter.sharedMesh == null) continue;
+
+            // Limite de cordura, y no es paranoia: una malla puede ser varios
+            // trozos repartidos, y entonces su caja envolvente abarca la garra
+            // entera. Cajas invisibles de metro y medio sobre las que los
+            // peluches se quedan flotando en el aire.
+            Vector3 world = Vector3.Scale(filter.sharedMesh.bounds.size, rend.transform.lossyScale);
+            float largest = Mathf.Max(world.x, Mathf.Max(world.y, world.z));
+
+            if (largest > maxClawColliderSize)
+            {
+                Debug.LogWarning("[ClawController] Me salto el collider de \"" + rend.name +
+                                 "\": mide " + largest.ToString("0.00") + " m, demasiado para un dedo. " +
+                                 "Esa malla debe estar repartida en varios trozos.", rend);
+                continue;
+            }
+
+            BoxCollider box = rend.gameObject.AddComponent<BoxCollider>();
+
+            box.center = filter.sharedMesh.bounds.center;
+            box.size = filter.sharedMesh.bounds.size;
+        }
+    }
+
+    // La altura ordenada del brazo se reinterpreta como longitud de cable: asi
+    // todo el codigo de descenso, parada y subida sigue valiendo tal cual.
+    void ApplyCableLength()
+    {
+        if (cableJoint == null) return;
+
+        SoftJointLimit limit = cableJoint.linearLimit;
+        limit.limit = Mathf.Max(minCableLength, cableBaseLength + (armUpY - armBaseLocalPos.y));
+        cableJoint.linearLimit = limit;
     }
 
     void HandleMovement()
@@ -1529,13 +1728,75 @@ public class ClawController : MonoBehaviour
 
     public Transform toySpawnPoint;
 
+    // Los peluches caen repartidos por el area de juego, no todos en el mismo
+    // punto. Antes salian del mismo sitio exacto y se apilaban en una columna.
+    //
+    // El area sale de los propios limites del carro: donde puede llegar la
+    // garra es justo donde tiene sentido que haya peluches. Y se descartan los
+    // puntos que caen sobre la boca del premio, que si no se regalan solos.
     public void SpawnToyInside(GameObject toyPrefab)
     {
         if (toyPrefab == null) return;
 
         Transform reference = toySpawnPoint != null ? toySpawnPoint : (hingePoint != null ? hingePoint : transform);
 
-        Instantiate(toyPrefab, reference.position, Quaternion.identity);
+        Vector3 point = reference.position + Vector3.up * toyDropHeight;
+
+        for (int attempt = 0; attempt < 12; attempt++)
+        {
+            Vector3 candidate = RandomPlayAreaPoint(reference);
+
+            if (prizeZone == null || FlatDistance(candidate, prizeZone.position) > prizeZoneClearance)
+            {
+                point = candidate;
+                break;
+            }
+        }
+
+        // Girados al azar: si todos caen igual orientados se nota muchisimo, y
+        // ademas se apilan demasiado ordenados para ser un monton de peluches.
+        Instantiate(toyPrefab, point, Random.rotation);
+    }
+
+    Vector3 RandomPlayAreaPoint(Transform reference)
+    {
+        if (railX == null || railZ == null) return reference.position;
+
+        // Medido desde el CENTRO del area, no desde donde este el carro ahora.
+        //
+        // Antes restaba la posicion actual del carro y se lo sumaba al punto de
+        // suelta, que es otro sitio distinto: dos origenes mezclados. Con unos
+        // limites que no estan centrados en cero (los tuyos van de -0,16 a 1,3)
+        // eso mandaba peluches hasta metro y medio fuera de la maquina.
+        float centerX = (limitXMin + limitXMax) * 0.5f;
+        float centerZ = (limitZMin + limitZMax) * 0.5f;
+
+        float halfX = (limitXMax - limitXMin) * 0.5f * toyScatterSpread;
+        float halfZ = (limitZMax - limitZMin) * 0.5f * toyScatterSpread;
+
+        Vector3 offset = railX.parent.TransformVector(new Vector3(Random.Range(-halfX, halfX), 0f, 0f))
+                       + railZ.parent.TransformVector(new Vector3(0f, 0f, Random.Range(-halfZ, halfZ)));
+
+        Vector3 point = reference.position + offset + Vector3.up * toyDropHeight;
+
+        // Red de seguridad: pase lo que pase con las cuentas, dentro de la
+        // maquina. Si el punto de suelta no estuviera centrado en el area, el
+        // reparto se descentraria, pero ningun peluche acabaria en el suelo.
+        Bounds inside = MachineBounds;
+        inside.Expand(-toyBoundsMargin * 2f);
+
+        point.x = Mathf.Clamp(point.x, inside.min.x, inside.max.x);
+        point.z = Mathf.Clamp(point.z, inside.min.z, inside.max.z);
+
+        return point;
+    }
+
+    static float FlatDistance(Vector3 a, Vector3 b)
+    {
+        a.y = 0f;
+        b.y = 0f;
+
+        return Vector3.Distance(a, b);
     }
 
     public void PlayAutomatically(System.Action onComplete)
