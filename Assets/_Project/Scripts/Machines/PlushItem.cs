@@ -8,6 +8,14 @@ public class PlushItem : MonoBehaviour
 
     [Tooltip("Por encima de estos vertices se usa una primitiva en vez de la malla.")]
     public int convexVertexLimit = 255;
+
+    [Tooltip("Material fisico del peluche: friccion alta y sin rebote.")]
+    public PhysicsMaterial physicsMaterial;
+
+    [Tooltip("Frena la deriva del peluche cuando ya esta apoyado.")]
+    public float linearDamping = 0.2f;
+    [Tooltip("Evita que ruede eternamente al caer.")]
+    public float angularDamping = 0.6f;
     [HideInInspector] public bool isGrabbed = false;
     [HideInInspector] public bool hasBeenGrabbed = false;
 
@@ -26,6 +34,12 @@ public class PlushItem : MonoBehaviour
         {
             rb.mass = GetWeightValue();
             rb.maxDepenetrationVelocity = 0.15f;
+
+            // Un peluche apoyado tiene que quedarse quieto. Sin amortiguamiento
+            // se pasa segundos deslizandose y rodando, y ademas tarda mucho mas
+            // en dormirse, que con veinte dentro de la maquina se nota.
+            rb.linearDamping = linearDamping;
+            rb.angularDamping = angularDamping;
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
         }
@@ -61,6 +75,7 @@ public class PlushItem : MonoBehaviour
             MeshCollider meshCollider = target.AddComponent<MeshCollider>();
             meshCollider.sharedMesh = mesh;
             meshCollider.convex = true;
+            meshCollider.sharedMaterial = physicsMaterial;
             return;
         }
 
@@ -77,22 +92,29 @@ public class PlushItem : MonoBehaviour
             SphereCollider sphere = target.AddComponent<SphereCollider>();
             sphere.center = bounds.center;
             sphere.radius = largest * 0.5f;
+            sphere.sharedMaterial = physicsMaterial;
             return;
         }
 
         BoxCollider box = target.AddComponent<BoxCollider>();
         box.center = bounds.center;
         box.size = size;
+        box.sharedMaterial = physicsMaterial;
     }
 
+    // Masas de peluche de verdad, en kilos. Antes eran 1, 2,5 y 4 kg: eso es lo
+    // que pesa un perro pequeno, no un peluche de 20 cm, que anda por los 200
+    // gramos. Con aquellas masas ninguna garra con fuerza realista levantaba
+    // nada, y lo que mas importa no es el valor suelto sino la proporcion con
+    // la cabeza de la garra: 1,5 kg de garra contra 0,2 kg de peluche es sano.
     public float GetWeightValue()
     {
         switch (weightCategory)
         {
-            case WeightCategory.Ligero: return 1f;
-            case WeightCategory.Medio: return 2.5f;
-            case WeightCategory.Pesado: return 4f;
-            default: return 2.5f;
+            case WeightCategory.Ligero: return 0.15f;
+            case WeightCategory.Medio: return 0.25f;
+            case WeightCategory.Pesado: return 0.4f;
+            default: return 0.25f;
         }
     }
 }

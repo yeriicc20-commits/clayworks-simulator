@@ -266,6 +266,7 @@ public class ClawController : MonoBehaviour
 
     private FixedJoint currentJoint;
     private Rigidbody clawHeadRb;
+    private Rigidbody carriageRb;
     private Collider lastTouchedPlushCollider;
     private Rigidbody heldPlushRb;
     private float[] currentFingerAngle;
@@ -308,6 +309,8 @@ public class ClawController : MonoBehaviour
         }
         clawHeadRb.isKinematic = true;
         clawHeadRb.useGravity = false;
+
+        SetUpCarriage();
 
         startPosX = railX.localPosition.x;
         startPosZ = railZ.localPosition.z;
@@ -446,17 +449,21 @@ public class ClawController : MonoBehaviour
 
     void Update()
     {
-        if (isControllable && !isBusy)
+        // GetKeyDown solo es fiable en Update: en FixedUpdate se pierden
+        // pulsaciones cuando el fotograma dura mas que el paso de fisica.
+        if (isControllable && !isBusy && Input.GetKeyDown(KeyCode.Space))
         {
-            HandleMovement();
-
-            if (Input.GetKeyDown(KeyCode.Space))
-            {
-                StartCoroutine(GrabSequence());
-            }
+            StartCoroutine(GrabSequence());
         }
 
         ApplyArmPosition();
+    }
+
+    // El carro empuja peluches, asi que su movimiento pertenece al paso de
+    // fisica. En Update avanzaba distinto segun los FPS.
+    void FixedUpdate()
+    {
+        if (isControllable && !isBusy) HandleMovement();
     }
 
     void ApplyArmPosition()
@@ -548,6 +555,33 @@ public class ClawController : MonoBehaviour
         clawArm.localRotation = swingRotation;
     }
 
+    // El carro pasa a ser un cuerpo cinematico. Cinematico y no dinamico porque
+    // lo manda el jugador, no las fuerzas: un motor que obedece a empujones se
+    // siente impreciso. Pero al moverlo con MovePosition en vez de escribir el
+    // transform, PhysX barre el trayecto y empuja lo que encuentre, en lugar de
+    // aparecer dentro del peluche y tener que expulsarlo a manotazos.
+    //
+    // Es el ancla de la que colgara la cabeza en el paso siguiente: una
+    // articulacion necesita un cuerpo al otro lado, no un transform suelto.
+    void SetUpCarriage()
+    {
+        if (railZ == null) return;
+
+        carriageRb = railZ.GetComponent<Rigidbody>();
+        if (carriageRb == null) carriageRb = railZ.gameObject.AddComponent<Rigidbody>();
+
+        carriageRb.isKinematic = true;
+        carriageRb.useGravity = false;
+
+        // Interpolado porque la fisica va a 60 Hz y la pantalla puede ir a mas:
+        // sin esto el carro se ve a saltos aunque se mueva perfecto.
+        carriageRb.interpolation = RigidbodyInterpolation.Interpolate;
+
+        // Especulativo: es el modo continuo que funciona en cuerpos cinematicos
+        // y evita que el carro atraviese un peluche en un solo paso.
+        carriageRb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+    }
+
     void HandleMovement()
     {
         float inputX = 0f;
@@ -567,40 +601,52 @@ public class ClawController : MonoBehaviour
         float accelRateX = (Mathf.Abs(targetVelX) > 0.01f) ? acceleration : deceleration;
         float accelRateZ = (Mathf.Abs(targetVelZ) > 0.01f) ? acceleration : deceleration;
 
-        currentVelX = Mathf.MoveTowards(currentVelX, targetVelX, accelRateX * Time.deltaTime);
-        currentVelZ = Mathf.MoveTowards(currentVelZ, targetVelZ, accelRateZ * Time.deltaTime);
+        // Paso de fisica, no de fotograma: esto vive en FixedUpdate. Con
+        // Time.deltaTime el carro avanzaba distinto segun los FPS y el empuje
+        // sobre los peluches nunca era el mismo dos veces.
+        float dt = Time.fixedDeltaTime;
 
-        Vector3 prevPosX = railX.localPosition;
-        Vector3 prevPosZ = railZ.localPosition;
+        currentVelX = Mathf.MoveTowards(currentVelX, targetVelX, accelRateX * dt);
+        currentVelZ = Mathf.MoveTowards(currentVelZ, targetVelZ, accelRateZ * dt);
 
         Vector3 posX = railX.localPosition;
-        posX.x += currentVelX * Time.deltaTime;
-        if (posX.x >= limitXMax || posX.x <= limitXMin)
-        {
-            currentVelX = 0f;
-        }
+        posX.x += currentVelX * dt;
+        if (posX.x >= limitXMax || posX.x <= limitXMin) currentVelX = 0f;
         posX.x = Mathf.Clamp(posX.x, limitXMin, limitXMax);
-        railX.localPosition = posX;
 
         Vector3 posZ = railZ.localPosition;
-        posZ.z += currentVelZ * Time.deltaTime;
-        if (posZ.z >= limitZMax || posZ.z <= limitZMin)
-        {
-            currentVelZ = 0f;
-        }
+        posZ.z += currentVelZ * dt;
+        if (posZ.z >= limitZMax || posZ.z <= limitZMin) currentVelZ = 0f;
         posZ.z = Mathf.Clamp(posZ.z, limitZMin, limitZMax);
-        railZ.localPosition = posZ;
 
-        Physics.SyncTransforms();
+        // Se comprueba el estorbo ANTES de moverse, no despues. Antes se movia,
+        // se preguntaba y se desandaba: eso daba un tiron visible y, con el
+        // carro empujando peluches, dejaba contactos a medias.
+        Vector3 hingeOffset = hingePoint.position - railZ.position;
+        Vector3 intendedCarriage = railX.parent != null
+            ? railX.parent.TransformPoint(new Vector3(posX.x, railX.localPosition.y, railX.localPosition.z))
+            : new Vector3(posX.x, railX.localPosition.y, railX.localPosition.z);
 
-        if (ClawBlockedAt(hingePoint.position))
+        Vector3 intendedHinge = intendedCarriage + (railZ.position - railX.position) + hingeOffset
+                              + railZ.parent.TransformVector(new Vector3(0f, 0f, posZ.z - railZ.localPosition.z));
+
+        if (ClawBlockedAt(intendedHinge))
         {
-            railX.localPosition = prevPosX;
-            railZ.localPosition = prevPosZ;
             currentVelX = 0f;
             currentVelZ = 0f;
-            Physics.SyncTransforms();
+            return;
         }
+
+        // El rail largo es decorado: lo unico que toca peluches es el carro.
+        railX.localPosition = posX;
+
+        // Y el carro se mueve avisando al motor de fisicas, no escribiendo el
+        // transform a pelo. Esa es la diferencia entre empujar un peluche y
+        // aparecer dentro de el para que PhysX lo expulse a manotazos.
+        Vector3 targetWorld = railZ.parent.TransformPoint(posZ);
+
+        if (carriageRb != null) carriageRb.MovePosition(targetWorld);
+        else railZ.localPosition = posZ;
     }
 
     IEnumerator GrabSequence()
@@ -1128,28 +1174,32 @@ public class ClawController : MonoBehaviour
             float speedX = ApproachSpeed(remainingX, speed, railDeceleration);
             float speedZ = ApproachSpeed(remainingZ, speed, railDeceleration);
 
-            posX.x = Mathf.MoveTowards(posX.x, targetLocalPos.x, speedX * Time.deltaTime);
+            // Paso de fisica: este viaje es justo cuando lleva el peluche
+            // colgando, y es cuando mas importa que el movimiento sea regular.
+            float dt = Time.fixedDeltaTime;
+
+            posX.x = Mathf.MoveTowards(posX.x, targetLocalPos.x, speedX * dt);
+            posZ.z = Mathf.MoveTowards(posZ.z, targetLocalPos.z, speedZ * dt);
+
+            Vector3 hingeOffset = hingePoint.position - railZ.position;
+            Vector3 intendedHinge = hingeOffset
+                + railX.parent.TransformPoint(new Vector3(posX.x, prevPosX.y, prevPosX.z))
+                + (railZ.position - railX.position)
+                + railZ.parent.TransformVector(new Vector3(0f, 0f, posZ.z - prevPosZ.z));
+
+            if (ClawBlockedAt(intendedHinge)) break;
+
             railX.localPosition = posX;
 
-            posZ.z = Mathf.MoveTowards(posZ.z, targetLocalPos.z, speedZ * Time.deltaTime);
-            railZ.localPosition = posZ;
-
-            Physics.SyncTransforms();
-
-            if (ClawBlockedAt(hingePoint.position))
-            {
-                railX.localPosition = prevPosX;
-                railZ.localPosition = prevPosZ;
-                Physics.SyncTransforms();
-                break;
-            }
+            if (carriageRb != null) carriageRb.MovePosition(railZ.parent.TransformPoint(posZ));
+            else railZ.localPosition = posZ;
 
             stillMoving = Vector3.Distance(new Vector3(posX.x, 0, posZ.z), new Vector3(targetLocalPos.x, 0, targetLocalPos.z)) > 0.02f;
 
-            safetyTimer += Time.deltaTime;
+            safetyTimer += dt;
             if (safetyTimer > 8f) break;
 
-            yield return null;
+            yield return new WaitForFixedUpdate();
         }
     }
 

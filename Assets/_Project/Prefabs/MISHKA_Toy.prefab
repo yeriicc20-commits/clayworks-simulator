@@ -77,6 +77,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c617976f0241d694e8bb281a9953df80, type: 3}
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::PlushItem
+  convexVertexLimit: 255
+  physicsMaterial: {fileID: 13400000, guid: a3eaba40fcb4750aaa12fdec5bc48cde, type: 2}
+  linearDamping: 0.2
+  angularDamping: 0.6
   weightCategory: 1
   isGrabbed: 0
   hasBeenGrabbed: 0
