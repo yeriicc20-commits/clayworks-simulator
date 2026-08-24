@@ -1,0 +1,55 @@
+# Carpetas que Unity regenera solas. Subirlas es la causa numero uno de
+# "a mi me funciona y a ti no": llevan rutas absolutas y cache del ordenador
+# de quien las subio. Library son varios GB y se reconstruye al abrir.
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# Paquetes que Unity descarga por su cuenta
+/[Aa]ssets/AssetStoreTools*
+/[Aa]ssets/Plugins/Editor/JetBrains*
+
+# Proyectos y archivos de editores de codigo
+.vs/
+.vscode/
+.idea/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Resultados de compilacion
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Copias de seguridad de escena que hicimos durante el desarrollo
+*.unity.bak
+*.unity.bak2
+*.prefab.bak*
+
+# Crash reports
+sysinfo.txt
+crashlytics-build.properties
+*.slnx
