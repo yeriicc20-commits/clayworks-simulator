@@ -90,6 +90,7 @@ public static class MaquinaGarraBuilder
         Transform[] dedos = { piezas["Dedo_1"], piezas["Dedo_2"], piezas["Dedo_3"] };
 
         Bounds garra = Envolvente(piezas, "Dedo_", "Cabeza");
+        Bounds todo = Envolvente(piezas, "");
 
         // Radio de la garra: lo que sobresale de su eje. Es lo que decide hasta
         // donde puede llegar sin rozar el cristal.
@@ -157,7 +158,7 @@ public static class MaquinaGarraBuilder
         // por donde estan la consola y la trampilla.
         GameObject sitioNPC = new GameObject("NPC_MachineSpot");
         sitioNPC.transform.SetParent(raiz.transform, false);
-        sitioNPC.transform.position = new Vector3(cristal.center.x, 0f, cristal.min.z - 0.55f);
+        sitioNPC.transform.position = new Vector3(todo.center.x, 0f, todo.min.z - 0.55f);
         sitioNPC.transform.rotation = Quaternion.LookRotation(Vector3.forward);
 
         // -------------------------------------------------- cable de la garra
@@ -196,6 +197,22 @@ public static class MaquinaGarraBuilder
         cableScript.bottomPoint = cabeza;
         cableScript.segmentCount = 6;
         cableScript.sagAmount = 0.004f;
+
+        // ------------------------------------------------- zona de interaccion
+        // ClawMachineInteraction va con OnTriggerEnter, asi que necesita un
+        // trigger EN SU MISMO GameObject. Sin el no aparece nunca el "E: jugar"
+        // y la maquina parece muerta aunque este perfectamente montada.
+        //
+        // Se pone delante, del lado de la consola, no envolviendo la maquina
+        // entera: si envuelve, el aviso salta tambien cuando pasas por detras.
+        const float FONDO_ZONA = 0.9f;
+
+        BoxCollider zona = raiz.AddComponent<BoxCollider>();
+        zona.isTrigger = true;
+        zona.size = new Vector3(todo.size.x + 0.4f, todo.size.y, FONDO_ZONA);
+        zona.center = new Vector3(todo.center.x,
+                                  todo.center.y,
+                                  todo.min.z - FONDO_ZONA * 0.5f);
 
         // ------------------------------------------------------- materiales
         // Los del FBX se descartan: Unity los importa con el shader que le
@@ -281,7 +298,7 @@ public static class MaquinaGarraBuilder
         claw.plushLayer = 1 << CAPA_PLUSH;
         claw.obstacleLayerMask = 0;
         claw.usePhysicalCable = false;
-        claw.isControllable = true;
+        claw.isControllable = false;
 
         MachinePricing precio = raiz.AddComponent<MachinePricing>();
         precio.price = 5f;
