@@ -74,6 +74,15 @@ public class ClawController : MonoBehaviour
     public float gripRandomRange = 40f;
     [HideInInspector] public float currentGripStrength;
 
+    [Header("Dedos con motor (rozamiento puro)")]
+    [Tooltip("Los dedos dejan de moverse escribiendo su rotacion y pasan a ser "
+             + "cuerpos con bisagra y motor. Un transform no empuja: se mete "
+             + "dentro del peluche y PhysX lo expulsa, que es por lo que la "
+             + "garra no agarraba nada. Apagarlo vuelve al sistema viejo.")]
+    public bool useMotorFingers = true;
+
+    [HideInInspector] public ClawFingerMotors fingerMotors;
+
     [Header("Fisica de agarre realista")]
     public bool useRealisticGripPhysics = true;
     public float gripForcePlayerMin = 1f;
@@ -415,6 +424,10 @@ public class ClawController : MonoBehaviour
             fingerJointHostRb[i] = hostRb;
         }
 
+        // Aqui y no antes: los motores necesitan los ejes de giro, y esos se
+        // acaban de calcular en el bucle de arriba.
+        SetUpFingerMotors();
+
         AddStaticMachineColliders();
         AddNavObstacle();
     }
@@ -540,11 +553,65 @@ public class ClawController : MonoBehaviour
     // La pose del dedo es funcion pura de su angulo, calculada desde el reposo.
     // Antes se acumulaba con RotateAround en espacio de mundo y cualquier
     // desfase se quedaba para siempre: los dedos acababan sueltos por el aire.
+    // Monta las bisagras con motor. Se llama al final de Start, cuando ya estan
+    // calculados los ejes de giro de cada dedo.
+    void SetUpFingerMotors()
+    {
+        if (!useMotorFingers || fingers == null || fingers.Length == 0) return;
+
+        // El soporte tiene que ser algo que viaje CON el brazo al bajar. Si se
+        // colgasen del carro, la bisagra tiraria de ellos hacia arriba en cuanto
+        // el brazo descendiese.
+        Transform anfitrion = clawArm != null ? clawArm : transform;
+
+        Rigidbody soporte = anfitrion.GetComponent<Rigidbody>();
+
+        if (soporte == null)
+        {
+            soporte = anfitrion.gameObject.AddComponent<Rigidbody>();
+            soporte.isKinematic = true;
+            soporte.useGravity = false;
+            soporte.interpolation = RigidbodyInterpolation.Interpolate;
+        }
+
+        if (fingerMotors == null) fingerMotors = GetComponent<ClawFingerMotors>();
+        if (fingerMotors == null) fingerMotors = gameObject.AddComponent<ClawFingerMotors>();
+
+        fingerMotors.soporte = soporte;
+        fingerMotors.fingers = fingers;
+        fingerMotors.ejes = fingerRotationAxis;
+        fingerMotors.closedAngle = fingerCloseAngle;
+
+        if (!fingerMotors.Construir())
+        {
+            Debug.LogWarning("[Garra] No he podido montar los motores de los dedos. "
+                             + "Se sigue con el sistema viejo, que no agarra bien.", this);
+            useMotorFingers = false;
+        }
+    }
+
+    bool ConMotores { get { return useMotorFingers && fingerMotors != null && fingerMotors.Listo; } }
+
     void ApplyFingerAngle(int i)
     {
         if (fingers == null || i >= fingers.Length || fingers[i] == null) return;
 
         if (!IsFinite(currentFingerAngle[i])) currentFingerAngle[i] = 0f;
+
+        // Con motores, la pose del dedo la manda la fisica. Aqui solo se le dice
+        // al motor hacia donde tiene que ir.
+        //
+        // Se le pide SIEMPRE el cierre completo, no el angulo intermedio que
+        // lleve la rutina: la gracia del motor es que empuje hasta que algo lo
+        // pare. Si se le fuese dando el angulo poco a poco, se quedaria quieto
+        // en cuanto la rutina dejase de subirlo y no apretaria nada.
+        if (ConMotores)
+        {
+            if (Mathf.Abs(currentFingerAngle[i]) < 1f) fingerMotors.Abrir();
+            else fingerMotors.Cerrar(fingerMotors.ParActual);
+
+            return;
+        }
 
         currentFingerAngle[i] = Mathf.Clamp(currentFingerAngle[i], -180f, 180f);
 
@@ -851,6 +918,14 @@ public class ClawController : MonoBehaviour
     IEnumerator GrabSequence()
     {
         isBusy = true;
+
+        if (ConMotores)
+        {
+            // Como una maquina de verdad: la placa decide cuanta corriente le da
+            // al motor en esta partida. Casi siempre poca.
+            float par = fingerMotors.ParaEstaPartida();
+            Debug.Log(string.Format("[Garra] Partida con {0:F3} Nm de apriete", par));
+        }
 
         if (useRealisticGripPhysics)
         {
@@ -1587,6 +1662,11 @@ public class ClawController : MonoBehaviour
 
     void TryCreateJointForFinger(int i)
     {
+        // Con motores no se crea ninguna union. Lo que sostiene al peluche es el
+        // rozamiento contra los dedos apretando, que es lo que se pidio. Una
+        // union invisible aqui haria que el agarre no fallase nunca.
+        if (ConMotores) return;
+
         if (fingerTouchedCollider[i] == null) return;
 
         Rigidbody rb = fingerTouchedCollider[i].attachedRigidbody;

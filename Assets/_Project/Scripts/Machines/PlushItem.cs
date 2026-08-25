@@ -7,7 +7,7 @@ public class PlushItem : MonoBehaviour
     public WeightCategory weightCategory = WeightCategory.Medio;
 
     [Tooltip("Cuanto se encoge el collider respecto a lo que se ve. Un peluche es blando.")]
-    [Range(0.6f, 1f)] public float colliderShrink = 0.82f;
+    [Range(0.6f, 1f)] public float colliderShrink = 0.94f;
 
     [Tooltip("Material fisico del peluche: friccion alta y sin rebote.")]
     public PhysicsMaterial physicsMaterial;

@@ -369,6 +369,47 @@ public static class MaquinaGarraBuilder
         claw.usePhysicalCable = false;
         claw.isControllable = false;
 
+        // --- reposo de la garra -------------------------------------------
+        // Encima de la boca del premio. Es donde se para una maquina de verdad:
+        // el jugador ve de un vistazo de donde sale el premio, y la partida
+        // empieza siempre desde el mismo sitio conocido.
+        Vector3 reposo = new Vector3(
+            Mathf.Clamp(boca.center.x, claw.limitXMin, claw.limitXMax),
+            0f,
+            Mathf.Clamp(boca.center.z, claw.limitZMin, claw.limitZMax));
+
+        Vector3 pp = puente.localPosition;
+        pp.x = reposo.x;
+        puente.localPosition = pp;
+
+        Vector3 pc = carro.localPosition;
+        pc.z = reposo.z;
+        carro.localPosition = pc;
+
+        // --- mandos --------------------------------------------------------
+        // El jugador esta delante mirando hacia la maquina, asi que su
+        // "adelante" es el sentido contrario al frente de la maquina, y su
+        // derecha tambien. Se deduce del lado que ya conocemos en vez de
+        // probar a ver cual sale.
+        claw.invertX = frente > 0f;
+        claw.invertZ = frente > 0f;
+
+        // --- rozamiento de los dedos ---------------------------------------
+        PhysicsMaterial agarre = AssetDatabase.LoadAssetAtPath<PhysicsMaterial>(
+            "Assets/_Project/Physics/GarraAgarre.physicMaterial");
+
+        ClawFingerMotors motores = raiz.AddComponent<ClawFingerMotors>();
+        motores.closedAngle = claw.fingerCloseAngle;
+        motores.gripMaterial = agarre;
+        claw.fingerMotors = motores;
+
+        if (agarre == null)
+        {
+            Debug.LogWarning("[Maquina] No encuentro GarraAgarre.physicMaterial. "
+                             + "Sin rozamiento alto los dedos no sujetan nada por "
+                             + "mucho par que tenga el motor.");
+        }
+
         MachinePricing precio = raiz.AddComponent<MachinePricing>();
         precio.price = 5f;
         precio.recommendedPrice = 5f;
@@ -401,10 +442,16 @@ public static class MaquinaGarraBuilder
             + "  recorrido Z ......... {6:F3} a {7:F3} m\n"
             + "  bajada del brazo .... {8:F3} m\n"
             + "  radio de la garra ... {9:F3} m\n"
-            + "  boca del premio ..... {10:F2} x {11:F2} m",
+            + "  boca del premio ..... {10:F2} x {11:F2} m\n"
+            + "  angulo de cierre .... {12:F1} grados\n"
+            + "  reposo de la garra .. x {13:F3}  z {14:F3}  (sobre la boca)\n"
+            + "  mandos invertidos ... X {15}  Z {16}\n"
+            + "  frente de la maquina  {17}Z",
             RUTA_PREFAB, piezas.Count, puestos, saltados,
             claw.limitXMin, claw.limitXMax, claw.limitZMin, claw.limitZMax,
-            -claw.armDownY, radioGarra, boca.size.x, boca.size.z));
+            -claw.armDownY, radioGarra, boca.size.x, boca.size.z,
+            claw.fingerCloseAngle, reposo.x, reposo.z,
+            claw.invertX, claw.invertZ, frente > 0f ? "+" : "-"));
 
         Selection.activeObject = guardado;
         EditorGUIUtility.PingObject(guardado);

@@ -1803,6 +1803,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1806775890278387834, guid: fff801a4c5d788b448b689768b8775a0, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 114.146
+      objectReference: {fileID: 0}
     - target: {fileID: 4126493116671731292, guid: fff801a4c5d788b448b689768b8775a0, type: 3}
       propertyPath: m_LocalPosition.x
       value: -20.4
@@ -1848,7 +1852,8 @@ PrefabInstance:
       value: ClawWrapper
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 9009992150073884966, guid: fff801a4c5d788b448b689768b8775a0, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: fff801a4c5d788b448b689768b8775a0, type: 3}
