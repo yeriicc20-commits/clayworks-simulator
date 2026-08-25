@@ -517,6 +517,20 @@ public static class MaquinaGarraBuilder
         audio3d.tope        = Sonido("Tope");
         audio3d.motorCarro  = Sonido("Motor_Carro");
         audio3d.motorCable  = Sonido("Motor_Cable");
+
+        // El motor pasa a ser una grabacion de verdad en vez del tono
+        // sintetizado, y trae 0,39 veces la energia que traia aquel: al mismo
+        // 0,10 de antes sonaria ocho decibelios mas flojo, o sea casi nada.
+        //
+        // Para dejarlo donde estaba harian falta 0,26, pero no se sube tanto a
+        // proposito. La grabacion tiene el grueso alrededor de 2.100 Hz, que es
+        // justo donde el oido mas oye, asi que igualar la energia se pasaria. Y
+        // si aun asi molesta, el medidor de F1 lo baja sin tocar nada.
+        //
+        // Va escrito aqui y no como valor por defecto del componente porque el
+        // prefab guarda los numeros dentro: cambiarlo en ClawAudio.cs no tocaria
+        // el prefab que ya existe y pareceria que el ajuste no sirve.
+        audio3d.volumenMotor = 0.20f;
         audio3d.musica      = Sonido("Musica_Arcade");
 
         claw.audio3d = audio3d;
