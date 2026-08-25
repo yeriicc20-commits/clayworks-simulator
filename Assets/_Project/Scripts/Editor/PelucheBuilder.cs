@@ -44,9 +44,10 @@ public static class PelucheBuilder
                 // Los mismos valores que en Blender. Se repiten aqui a
                 // proposito: el FBX trae materiales, pero Unity los importa con
                 // el shader que le parece y en URP salen rosas o planos.
-                { "Panxeta_Blanco", new Color(0.94f, 0.93f, 0.89f) },
-                { "Panxeta_Marron", new Color(0.70f, 0.28f, 0.09f) },
-                { "Panxeta_Negro",  new Color(0.07f, 0.07f, 0.08f) },
+                { "Panxeta_Blanco",     new Color(0.94f, 0.93f, 0.89f) },
+                { "Panxeta_Naranja",    new Color(0.76f, 0.26f, 0.06f) },
+                { "Panxeta_NaranjaOsc", new Color(0.48f, 0.15f, 0.04f) },
+                { "Panxeta_Negro",      new Color(0.06f, 0.06f, 0.07f) },
             },
         },
     };
@@ -253,6 +254,8 @@ public static class PelucheBuilder
     {
         if (tabla.Count == 0) return;
 
+        var sinReceta = new HashSet<string>();
+
         foreach (Renderer r in raiz.GetComponentsInChildren<Renderer>(true))
         {
             Material[] mats = r.sharedMaterials;
@@ -262,18 +265,50 @@ public static class PelucheBuilder
             {
                 if (mats[i] == null) continue;
 
-                foreach (var par in tabla)
-                {
-                    if (!mats[i].name.StartsWith(par.Key)) continue;
+                string clave = Mejor(mats[i].name, tabla);
 
-                    mats[i] = par.Value;
+                if (clave == null)
+                {
+                    sinReceta.Add(mats[i].name);
+                    continue;
+                }
+
+                if (mats[i] != tabla[clave])
+                {
+                    mats[i] = tabla[clave];
                     tocado = true;
-                    break;
                 }
             }
 
             if (tocado) r.sharedMaterials = mats;
         }
+
+        // Que se entere si un material del modelo no tiene receta. Con esto
+        // callado, una pieza se queda con el material que Unity le puso al
+        // importar y en URP eso puede ser cualquier cosa.
+        if (sinReceta.Count > 0)
+        {
+            Debug.LogWarning("[Peluche] Materiales sin receta, se quedan como los "
+                             + "importo Unity: " + string.Join(", ", sinReceta));
+        }
+    }
+
+    // La coincidencia MAS LARGA, no la primera.
+    //
+    // "Panxeta_Naranja" es prefijo de "Panxeta_NaranjaOsc", asi que buscando la
+    // primera que encaje el ombligo salia naranja claro en vez de oscuro. Con
+    // dos colores parecidos el fallo ni se ve; con uno claro y uno oscuro, si.
+    static string Mejor(string nombre, Dictionary<string, Material> tabla)
+    {
+        string mejor = null;
+
+        foreach (string clave in tabla.Keys)
+        {
+            if (!nombre.StartsWith(clave)) continue;
+            if (mejor == null || clave.Length > mejor.Length) mejor = clave;
+        }
+
+        return mejor;
     }
 }
 
@@ -292,8 +327,8 @@ public class PelucheAutoBuild : AssetPostprocessor
     {
         foreach (string ruta in importados)
         {
-            if (!ruta.EndsWith(.fbx)) continue;
-            if (!ruta.StartsWith(Assets/_Project/Models/)) continue;
+            if (!ruta.EndsWith(".fbx")) continue;
+            if (!ruta.StartsWith("Assets/_Project/Models/")) continue;
 
             // En diferido: durante la importacion Unity no deja crear ni
             // guardar assets.
