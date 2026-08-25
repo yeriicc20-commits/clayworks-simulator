@@ -24,6 +24,13 @@ public class ClawAudio : MonoBehaviour
     public AudioClip motorCarro;
     public AudioClip motorCable;
 
+    [Header("Musica")]
+    [Tooltip("Suena mientras hay partida en marcha, no todo el rato: una sala "
+             + "con seis maquinas sonando a la vez es ruido, no ambiente.")]
+    public AudioClip musica;
+
+    [Range(0f, 1f)] public float volumenMusica = 0.45f;
+
     [Header("Mezcla")]
     [Range(0f, 1f)] public float volumen = 0.8f;
 
@@ -35,11 +42,17 @@ public class ClawAudio : MonoBehaviour
 
     AudioSource sueltos;
     AudioSource bucle;
+    AudioSource musical;
 
     void Awake()
     {
         sueltos = Crear("Audio_Sueltos", false);
         bucle = Crear("Audio_Motor", true);
+
+        // Tercera fuente para la musica: si compartiese la de los motores, el
+        // zumbido del carro la cortaria en seco cada vez que te mueves.
+        musical = Crear("Audio_Musica", true);
+        musical.volume = volumenMusica;
     }
 
     AudioSource Crear(string nombre, bool enBucle)
@@ -85,6 +98,25 @@ public class ClawAudio : MonoBehaviour
 
     public void MotorCarro(bool encendido) { Motor(encendido ? motorCarro : null); }
     public void MotorCable(bool encendido) { Motor(encendido ? motorCable : null); }
+
+    // ----------------------------------------------------------------- musica
+
+    public void Musica(bool encendida)
+    {
+        if (musical == null || musica == null) return;
+
+        if (!encendida)
+        {
+            if (musical.isPlaying) musical.Stop();
+            return;
+        }
+
+        if (musical.isPlaying) return;
+
+        musical.clip = musica;
+        musical.volume = volumenMusica;
+        musical.Play();
+    }
 
     void Motor(AudioClip clip)
     {

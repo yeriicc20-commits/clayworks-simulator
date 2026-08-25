@@ -494,6 +494,7 @@ public static class MaquinaGarraBuilder
         audio3d.tope        = Sonido("Tope");
         audio3d.motorCarro  = Sonido("Motor_Carro");
         audio3d.motorCable  = Sonido("Motor_Cable");
+        audio3d.musica      = Sonido("Musica_Arcade");
 
         claw.audio3d = audio3d;
 

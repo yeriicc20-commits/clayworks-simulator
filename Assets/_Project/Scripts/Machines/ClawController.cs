@@ -563,6 +563,10 @@ public class ClawController : MonoBehaviour
         // ancla se mueve al ritmo del dibujo, el solver ve saltos que no
         // corresponden a ninguna velocidad y responde a lo loco.
         ApplyArmPosition();
+
+        // La musica va con el estado de la maquina y no con quien haya pagado,
+        // asi vale igual para el jugador y para un NPC.
+        if (audio3d != null) audio3d.Musica(isControllable || isBusy);
     }
 
     void ApplyArmPosition()
@@ -1784,6 +1788,11 @@ public class ClawController : MonoBehaviour
 
     IEnumerator MoveRailsTo(Vector3 targetLocalPos, float speed)
     {
+        // El motor tambien suena cuando la maquina se conduce sola, camino de la
+        // boca del premio y de vuelta a casa. Antes solo sonaba mientras el
+        // jugador tocaba el mando, asi que media partida iba muda.
+        if (audio3d != null) audio3d.MotorCarro(true);
+
         bool stillMoving = true;
         float safetyTimer = 0f;
         float railDeceleration = deceleration;
@@ -1829,6 +1838,8 @@ public class ClawController : MonoBehaviour
 
             yield return new WaitForFixedUpdate();
         }
+
+        if (audio3d != null) audio3d.MotorCarro(false);
     }
 
     void TryGrabPlush()
