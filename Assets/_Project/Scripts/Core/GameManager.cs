@@ -16,6 +16,9 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
+        // El mezclador de sonido, listo desde el primer fotograma.
+        PanelSonido.EnsureExists();
+
         UpdateMoneyUI();
 
         // El nivel y su barra se montan solos al lado del dinero.

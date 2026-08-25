@@ -620,6 +620,17 @@ public static class MaquinaGarraBuilder
         string ruta = "Assets/_Project/Audio/" + nombre + ".wav";
         AudioClip clip = AssetDatabase.LoadAssetAtPath<AudioClip>(ruta);
 
+        // Si el fichero esta en disco pero Unity todavia no lo ha importado, se
+        // le pide que lo importe y se reintenta. Pasa cuando el prefab se rehace
+        // en el mismo refresco en el que aparecen sonidos nuevos: el WAV existe,
+        // pero LoadAssetAtPath devuelve nulo y el clip se quedaba sin asignar
+        // sin que saltase ningun aviso.
+        if (clip == null && System.IO.File.Exists(ruta))
+        {
+            AssetDatabase.ImportAsset(ruta, ImportAssetOptions.ForceSynchronousImport);
+            clip = AssetDatabase.LoadAssetAtPath<AudioClip>(ruta);
+        }
+
         if (clip == null) Debug.LogWarning("[Maquina] Falta el sonido " + ruta);
 
         return clip;

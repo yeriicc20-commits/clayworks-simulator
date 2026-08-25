@@ -57,6 +57,26 @@ public class ClawAudio : MonoBehaviour
     AudioSource bucle;
     AudioSource musical;
 
+    void OnEnable() { AjustesSonido.Cambiado += Remezclar; }
+    void OnDisable() { AjustesSonido.Cambiado -= Remezclar; }
+
+    // Los sonidos que ya estan sonando tienen que cambiar de volumen sobre la
+    // marcha. Los sueltos no hace falta: duran menos que el tiempo que tarda
+    // alguien en soltar el boton.
+    void Remezclar()
+    {
+        if (musical != null)
+        {
+            musical.volume = volumenMusica * AjustesSonido.Mezcla(AjustesSonido.Canal.Musica);
+        }
+
+        if (bucle != null && bucle.isPlaying)
+        {
+            bucle.volume = volumen * volumenMotor
+                           * AjustesSonido.Mezcla(AjustesSonido.Canal.Motores);
+        }
+    }
+
     void Awake()
     {
         sueltos = Crear("Audio_Sueltos", false);
@@ -95,7 +115,8 @@ public class ClawAudio : MonoBehaviour
 
         // PlayOneShot y no Play: dos golpes seguidos tienen que solaparse, no
         // cortarse el uno al otro.
-        sueltos.PlayOneShot(clip, volumen * vol);
+        sueltos.PlayOneShot(clip, volumen * vol
+                            * AjustesSonido.Mezcla(AjustesSonido.Canal.Efectos));
     }
 
     public void Moneda() { Sonar(moneda); }
@@ -140,7 +161,7 @@ public class ClawAudio : MonoBehaviour
         if (musical.isPlaying) return;
 
         musical.clip = musica;
-        musical.volume = volumenMusica;
+        musical.volume = volumenMusica * AjustesSonido.Mezcla(AjustesSonido.Canal.Musica);
         musical.Play();
     }
 
@@ -159,7 +180,8 @@ public class ClawAudio : MonoBehaviour
         if (bucle.clip == clip && bucle.isPlaying) return;
 
         bucle.clip = clip;
-        bucle.volume = volumen * (vol < 0f ? volumenMotor : vol);
+        bucle.volume = volumen * (vol < 0f ? volumenMotor : vol)
+                       * AjustesSonido.Mezcla(AjustesSonido.Canal.Motores);
         bucle.Play();
     }
 }
