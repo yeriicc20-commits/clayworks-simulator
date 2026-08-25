@@ -96,19 +96,23 @@ public static class MaquinaGarraBuilder
                                     "Cristal_Izq", "Cristal_Der");
         Bounds boca = Envolvente(piezas, "Boca_Labio_");
 
-        // Hueco LIBRE, de cara interior a cara interior. Antes se usaba la
-        // envolvente de los cuatro cristales, que incluye su grosor: se perdia
-        // un centimetro de recorrido por cada lado sin motivo.
-        Bounds cIzq = Envolvente(piezas, "Cristal_Izq");
-        Bounds cDer = Envolvente(piezas, "Cristal_Der");
-        Bounds cFre = Envolvente(piezas, "Cristal_Frente");
-        Bounds cAtr = Envolvente(piezas, "Cristal_Atras");
+        // Hueco LIBRE, de cara interior a cara interior. La envolvente de los
+        // cuatro cristales incluye su grosor, asi que basta con descontarlo por
+        // cada lado.
+        //
+        // Se hace sin mirar los nombres de los paneles a proposito. Al
+        // intentarlo por nombre (izquierdo, derecho) salio el recorrido X del
+        // reves, porque la exportacion a FBX invierte ese eje y el panel
+        // "Izquierdo" acaba a la derecha. Restar grosor a una envolvente da
+        // igual de que lado este cada pieza.
+        float grosorCristal = Mathf.Min(
+            Envolvente(piezas, "Cristal_Izq").size.x,
+            Envolvente(piezas, "Cristal_Frente").size.z);
 
-        float huecoX0 = cIzq.max.x, huecoX1 = cDer.min.x;
-        float huecoZ0 = Mathf.Min(cFre.max.z, cAtr.max.z);
-        float huecoZ1 = Mathf.Max(cFre.min.z, cAtr.min.z);
-
-        if (huecoZ0 > huecoZ1) { float t = huecoZ0; huecoZ0 = huecoZ1; huecoZ1 = t; }
+        float huecoX0 = cristal.min.x + grosorCristal;
+        float huecoX1 = cristal.max.x - grosorCristal;
+        float huecoZ0 = cristal.min.z + grosorCristal;
+        float huecoZ1 = cristal.max.z - grosorCristal;
         Bounds cajaCarro = Envolvente(piezas, "Carro");
 
         Transform puente = piezas["Puente"];
@@ -326,6 +330,18 @@ public static class MaquinaGarraBuilder
 
         float centroX = puente.localPosition.x;
         float centroZ = carro.localPosition.z;
+
+        if (alcanceX <= 0f || alcanceZ <= 0f)
+        {
+            Debug.LogWarning(string.Format(
+                "[Maquina] El alcance ha salido negativo (X {0:F3}, Z {1:F3}). "
+                + "La garra no cabe en el hueco, o alguna medida esta del reves. "
+                + "Se deja el minimo para que al menos se pueda mover.",
+                alcanceX, alcanceZ));
+
+            alcanceX = Mathf.Max(0.05f, Mathf.Abs(alcanceX));
+            alcanceZ = Mathf.Max(0.05f, Mathf.Abs(alcanceZ));
+        }
 
         claw.limitXMin = centroX - alcanceX;
         claw.limitXMax = centroX + alcanceX;
