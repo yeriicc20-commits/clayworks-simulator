@@ -17,6 +17,24 @@ public class BoxCarrier : MonoBehaviour
     [Tooltip("Boton del raton para dejar la caja en el suelo. 0 = izquierdo.")]
     public int dropMouseButton = 0;
 
+    [Header("Lanzar")]
+    public KeyCode throwKey = KeyCode.Q;
+
+    [Tooltip("Cuanto hay que mantener la tecla para llegar al maximo.")]
+    public float cargaCompleta = 1.4f;
+
+    [Tooltip("Velocidad de salida con la barra a cero, en m/s. Es un empujon: "
+             + "soltar la tecla al instante no puede dejar la caja clavada en el "
+             + "aire.")]
+    public float velocidadMinima = 3f;
+
+    [Tooltip("Velocidad de salida con la barra al maximo. Nueve metros por "
+             + "segundo cruzan el local en un segundo largo, que es lo lejos que "
+             + "tiene sentido tirar una caja de carton.")]
+    public float velocidadMaxima = 9f;
+
+    private float carga = 0f;
+
     public bool IsCarrying { get { return carried != null; } }
     public bool IsDeploying { get; private set; }
     public bool IsPlacingBox { get; private set; }
@@ -107,6 +125,14 @@ public class BoxCarrier : MonoBehaviour
     {
         if (carried == null)
         {
+            // Si la caja se ha ido por otro sitio (consumida, colocada) en mitad
+            // de una carga, la barra se queda encendida para siempre.
+            if (carga > 0f)
+            {
+                carga = 0f;
+                MedidorFuerza.Ocultar();
+            }
+
             HideHint();
             return;
         }
@@ -129,7 +155,12 @@ public class BoxCarrier : MonoBehaviour
             return;
         }
 
-        ShowHint(carried.CarryHint);
+        // Cargar el tiro se mira ANTES que nada. Mientras se esta apuntando no
+        // se deja usar la caja ni soltarla: si no, el clic de "meter peluches"
+        // se colaba en mitad de la carga y te quedabas apuntando sin caja.
+        if (Cargando()) return;
+
+        ShowHint(carried.CarryHint + " - manten " + throwKey + " para lanzarla");
 
         // La caja tiene prioridad: si consume el clic (meter peluches en una
         // maquina) no se interpreta como dejarla en el suelo.
@@ -137,6 +168,80 @@ public class BoxCarrier : MonoBehaviour
 
         if (Input.GetKeyDown(useKey)) carried.OnUseKey(this);
         else if (Input.GetMouseButtonDown(dropMouseButton)) Drop();
+    }
+
+    // Devuelve true mientras se esta apuntando el tiro.
+    bool Cargando()
+    {
+        if (Input.GetKey(throwKey))
+        {
+            carga = Mathf.Min(carga + Time.deltaTime, cargaCompleta);
+
+            MedidorFuerza.Mostrar(carga / cargaCompleta);
+            ShowHint("Suelta " + throwKey + " para lanzar la caja");
+
+            return true;
+        }
+
+        if (carga <= 0f) return false;
+
+        // Se ha soltado la tecla: sale la caja con lo que hubiera acumulado.
+        float fuerza = carga / cargaCompleta;
+        carga = 0f;
+
+        MedidorFuerza.Ocultar();
+        Lanzar(fuerza);
+
+        return true;
+    }
+
+    void Lanzar(float fuerza)
+    {
+        CarriableBox caja = carried;
+        if (caja == null) return;
+
+        carried = null;
+        HideHint();
+
+        caja.transform.SetParent(null, true);
+        caja.transform.localScale = originalScale;
+
+        Camera cam = Camera.main;
+        Transform ojo = cam != null ? cam.transform : transform;
+
+        Vector3 mirada = ojo.forward;
+
+        // Fuera del cuerpo antes de soltarla. En la mano va a escala reducida y
+        // al recuperar su tamano crece alrededor de su pivote: si se suelta ahi
+        // mismo, media caja queda dentro del jugador y PhysX la escupe.
+        Vector3 plano = new Vector3(mirada.x, 0f, mirada.z);
+        if (plano.sqrMagnitude < 0.0001f) plano = Vector3.forward;
+
+        Vector3 tam = ApiladorCajas.Tamano(caja.gameObject);
+        float fondo = Mathf.Max(tam.x, tam.z) * 0.5f;
+
+        caja.transform.position = ojo.position + plano.normalized * (0.45f + fondo)
+                                  + Vector3.up * 0.05f;
+
+        SetPhysicsEnabled(caja, true);
+
+        Rigidbody rb = caja.GetComponent<Rigidbody>();
+        if (rb == null) return;
+
+        // Algo hacia arriba. Un tiro completamente recto se estrella a dos
+        // metros y no parece que la hayas lanzado, parece que se te ha caido.
+        Vector3 salida = (mirada + Vector3.up * 0.22f).normalized;
+
+        rb.linearVelocity = salida * Mathf.Lerp(velocidadMinima, velocidadMaxima, fuerza);
+
+        // Un poco de vuelta sobre si misma, que es lo que hace una caja tirada a
+        // mano. Poca: girando mucho parece un dado.
+        rb.angularVelocity = ojo.right * Random.Range(-2.2f, -0.6f);
+
+        // Barrido continuo mientras vuela. A nueve metros por segundo recorre 15
+        // cm en un paso de fisica, y con deteccion discreta eso se cuela por una
+        // pared fina sin enterarse.
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
     }
 
     // Saca el contenido: la caja desaparece de las manos mientras colocas.
@@ -212,6 +317,12 @@ public class BoxCarrier : MonoBehaviour
         carried.transform.SetPositionAndRotation(position, rotation);
 
         SetPhysicsEnabled(carried, true);
+
+        // Con el fantasma la caja aparece ya apoyada y no llega a chocar con
+        // nada, asi que el sonido no saltaria solo. Se pide flojito, que es lo
+        // que suena dejar una caja en el suelo con cuidado.
+        GolpeCaja ruido = carried.GetComponent<GolpeCaja>();
+        if (ruido != null) ruido.Sonar(ruido.velocidadMinima + 0.3f);
 
         carried = null;
     }

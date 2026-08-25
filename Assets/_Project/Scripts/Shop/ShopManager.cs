@@ -155,7 +155,12 @@ public class ShopManager : MonoBehaviour
             ? reference.position
             : reference.position + forward.normalized * 1.8f;
 
-        position = origin + side.normalized * (spawnIndex * 1.5f);
+        // Ya no se reparten a mano de metro y medio en metro y medio. Todas
+        // llegan al mismo sitio y es ApiladorCajas quien busca hueco: repartir a
+        // ciegas metia cajas dentro de la pared en cuanto el pedido era largo.
+        // El indice solo desempata un poco para que la busqueda no arranque
+        // siempre del mismo punto exacto.
+        position = origin + side.normalized * (spawnIndex * 0.05f);
 
         RaycastHit hit;
         if (Physics.Raycast(position + Vector3.up * 3f, Vector3.down, out hit, 12f, ~0, QueryTriggerInteraction.Ignore))
@@ -164,6 +169,15 @@ public class ShopManager : MonoBehaviour
         }
 
         rotation = Quaternion.Euler(0f, reference.eulerAngles.y, 0f);
+    }
+
+    [Tooltip("Lo lejos del punto de entrega que puede buscar hueco una caja.")]
+    public float radioEntrega = 3.5f;
+
+    // Todo pedido pasa por aqui: se coloca apoyado, sin solaparse y sin salirse.
+    void Entregar(GameObject caja, Vector3 pos)
+    {
+        ApiladorCajas.Colocar(caja, pos, radioEntrega);
     }
 
     void SpawnMachineBox(ShopItem item, int spawnIndex)
@@ -176,6 +190,8 @@ public class ShopManager : MonoBehaviour
 
         PickupBox pickupBox = box.GetComponent<PickupBox>();
         if (pickupBox != null) pickupBox.machinePrefab = item.machinePrefab;
+
+        Entregar(box, pos);
 
         // Montar maquina nueva es lo que mas hace crecer la tienda.
         LevelManager levels = LevelManager.EnsureExists();
@@ -210,6 +226,8 @@ public class ShopManager : MonoBehaviour
 
         toyBox.toyPrefab = item.toyPrefab;
         toyBox.toyCount = item.boxToyCount;
+
+        Entregar(box, pos);
 
         LevelManager levels = LevelManager.EnsureExists();
         if (levels != null) levels.Add(levels.xpToyBought);

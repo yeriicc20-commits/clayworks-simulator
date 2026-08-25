@@ -18,9 +18,14 @@ public static class PlayerCarry
         get { return BoxCarrier.Instance != null && BoxCarrier.Instance.IsCarrying; }
     }
 
+    public static bool IsCarryingPlush
+    {
+        get { return PelucheEnMano.LlevaPeluche; }
+    }
+
     public static bool HandsFull
     {
-        get { return IsCarryingToyBox || IsPlacingMachine || IsCarryingBox; }
+        get { return IsCarryingToyBox || IsPlacingMachine || IsCarryingBox || IsCarryingPlush; }
     }
 
     // Con el ordenador o la pantalla de precios abiertos no se toca nada mas.
@@ -35,6 +40,7 @@ public static class PlayerCarry
         {
             if (IsCarryingToyBox) return "Ya llevas una caja de juguetes";
             if (IsCarryingBox) return "Ya llevas una caja en brazos";
+            if (IsCarryingPlush) return "Ya llevas un peluche en la mano";
             if (IsPlacingMachine) return "Estas colocando algo";
             if (MonitorTerminal.InUse) return "Estas usando el ordenador";
 

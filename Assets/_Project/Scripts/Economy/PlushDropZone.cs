@@ -54,7 +54,34 @@ public class PlushDropZone : MonoBehaviour
         }
         else
         {
-            Destroy(plush.gameObject);
+            // Antes se destruia aqui mismo: cobrabas y el peluche
+            // desaparecia. Ahora se queda en el cajon para que el jugador se
+            // agache y lo coja. El dinero sigue saliendo igual, que es lo que
+            // paga la maquina; esto solo anade poder llevarselo.
+            DejarloParaRecoger(plush);
+        }
+    }
+
+    // Lo prepara para que se pueda recoger del suelo.
+    void DejarloParaRecoger(PlushItem plush)
+    {
+        // El componente se pone AQUI y no en el prefab a proposito. Los
+        // peluches que estan dentro de la maquina son del dueno, y con esto
+        // puesto de fabrica se podrian sacar a traves del cristal sin mas que
+        // agacharse delante.
+        if (plush.GetComponent<PelucheRecogible>() == null)
+        {
+            plush.gameObject.AddComponent<PelucheRecogible>();
+        }
+
+        Rigidbody rb = plush.GetComponent<Rigidbody>();
+
+        if (rb != null)
+        {
+            // Que se calme deprisa dentro del cajon en vez de rodar hasta un
+            // rincon donde ya no se llegue a cogerlo.
+            rb.linearDamping = Mathf.Max(rb.linearDamping, 1.2f);
+            rb.angularDamping = Mathf.Max(rb.angularDamping, 2.5f);
         }
     }
 
