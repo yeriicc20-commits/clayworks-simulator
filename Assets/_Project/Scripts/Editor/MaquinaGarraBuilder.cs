@@ -40,7 +40,16 @@ public static class MaquinaGarraBuilder
         "Motor_Puente_Polea", "Riel_Tope_",
     };
 
-    [MenuItem("ClayWorks/Construir maquina de garra")]
+    // Dos sitios a proposito: el menu de arriba y el boton derecho en la
+    // ventana de Proyecto. Un menu nuevo en la barra de Unity aparece al final
+    // del todo y es facil no verlo.
+    [MenuItem("Assets/Construir maquina de garra", false, 30)]
+    public static void ConstruirDesdeProyecto()
+    {
+        Construir();
+    }
+
+    [MenuItem("ClayWorks/Construir maquina de garra", false, 1)]
     public static void Construir()
     {
         GameObject modelo = AssetDatabase.LoadAssetAtPath<GameObject>(RUTA_FBX);
