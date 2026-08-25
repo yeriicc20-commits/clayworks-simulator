@@ -493,6 +493,24 @@ public static class MaquinaGarraBuilder
 
         motores.closedAngle = claw.fingerCloseAngle;
         motores.gripMaterial = agarre;
+
+        // El par del tope sale de una cuenta, no de probar numeros.
+        //
+        // Del dedo a la punta hay 186 mm de brazo, asi que un dedo aprieta con
+        // par/0,186 newton. El rozamiento de los dos materiales combina en modo
+        // Multiply, o sea 1,3 x 0,65 = 0,845 el dinamico, que es el que cuenta
+        // en cuanto el peluche empieza a resbalar. Y el peluche mas pesado son
+        // 0,4 kg subiendo a 1,2 m/s2: 4,40 N que hay que sujetar.
+        //
+        // Con dos dedos agarrando, que es lo normal cuando el peluche no cae
+        // centrado, salian 4,10 N contra esos 4,40. Se escurria por poco, y por
+        // eso pasaba aunque el mando estuviera al maximo. Con 0,85 son 7,74 N,
+        // casi el doble de lo que pesa, y con los tres dedos 11,6.
+        motores.torqueMin = 0.04f;
+        motores.torqueNormal = 0.45f;
+        motores.torqueMax = 0.85f;
+        motores.mandoFirme = 0.8f;
+
         claw.fingerMotors = motores;
 
         if (agarre == null)

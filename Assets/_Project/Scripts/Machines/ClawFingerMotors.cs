@@ -53,8 +53,16 @@ public class ClawFingerMotors : MonoBehaviour
              + "el peluche mas ligero: es la partida que no paga.")]
     public float torqueMin = 0.04f;
 
-    [Tooltip("Lo maximo. Con esto agarra casi cualquier cosa.")]
-    public float torqueMax = 0.45f;
+    [Tooltip("Par al 80% del mando. De ahi para arriba sube hasta torqueMax.")]
+    public float torqueNormal = 0.45f;
+
+    [Tooltip("Par al 100% del mando. Con esto NO se cae, y esa es la condicion "
+             + "que fija el numero: no es 'mucho par', es el par que hace falta.")]
+    public float torqueMax = 0.85f;
+
+    [Tooltip("A partir de que punto del mando se deja de sortear la fuerza y "
+             + "empieza a mandar el maximo.")]
+    [Range(0.5f, 1f)] public float mandoFirme = 0.8f;
 
     [Tooltip("Cuantas partidas de cada diez salen con fuerza de sobra. El resto "
              + "se reparten por abajo. 0,12 = una de cada ocho, mas o menos.")]
@@ -91,7 +99,17 @@ public class ClawFingerMotors : MonoBehaviour
     {
         get
         {
-            float baseTecho = Mathf.Lerp(torqueMin, torqueMax, Mathf.Clamp01(ajuste));
+            // El mando no va en linea recta hasta el maximo, sino con un codo.
+            //
+            // Hasta mandoFirme se mueve por donde se movia siempre, que es el
+            // tramo con el que se juega. El ultimo tramo dispara el par, porque
+            // para que agarre A VECES basta con poco y para que no se caiga
+            // NUNCA hace falta bastante mas.
+            float a = Mathf.Clamp01(ajuste);
+
+            float baseTecho = a <= mandoFirme
+                ? Mathf.Lerp(torqueMin, torqueNormal, a / mandoFirme)
+                : Mathf.Lerp(torqueNormal, torqueMax, (a - mandoFirme) / (1f - mandoFirme));
 
             float progreso = jugadasParaGarantizar <= 0
                              ? 1f
@@ -229,11 +247,22 @@ public class ClawFingerMotors : MonoBehaviour
 
         // El sorteo va del 60% del techo al techo, no del minimo al techo.
         // Repartiendo desde el minimo, ni con el mando al maximo se notaba:
-        // seguian saliendo partidas flojas la mitad de las veces. Asi el mando
-        // manda de verdad, y aun asi cada partida sale un poco distinta.
+        // seguian saliendo partidas flojas la mitad de las veces.
+        float suelo = Mathf.Lerp(torqueMin, techo, 0.6f);
+
+        // Y el sorteo se estrecha segun sube el mando, hasta desaparecer en el
+        // tope. Al 100% no puede haber loteria: si el dueno ha puesto el maximo
+        // y el jugador ha cogido bien el peluche, se lo lleva. Antes al 100%
+        // seguia saliendo cualquier cosa entre 0,29 y 0,45, y con la de abajo el
+        // peluche se escurria aunque el mando dijera que no podia pasar.
+        float firme = Mathf.Clamp01((Mathf.Clamp01(ajuste) - mandoFirme)
+                                    / Mathf.Max(1e-4f, 1f - mandoFirme));
+
+        suelo = Mathf.Lerp(suelo, techo, firme);
+
         parActual = generosa
             ? Random.Range(Mathf.Lerp(techo, torqueMax, 0.5f), torqueMax)
-            : Random.Range(Mathf.Lerp(torqueMin, techo, 0.6f), techo);
+            : Random.Range(suelo, techo);
 
         jugadasSinPremio++;
 
