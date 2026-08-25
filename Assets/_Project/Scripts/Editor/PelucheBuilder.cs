@@ -25,6 +25,9 @@ public static class PelucheBuilder
         public string nombre;
         public string fbx;
         public PlushItem.WeightCategory peso;
+
+        // Piezas que cuelgan y se balancean solas. Vacio si no tiene.
+        public string[] partesBlandas;
         public Dictionary<string, Color> colores;
     }
 
@@ -35,6 +38,7 @@ public static class PelucheBuilder
             nombre = "Panxeta_Toy",
             fbx = "Assets/_Project/Models/Panxeta.fbx",
             peso = PlushItem.WeightCategory.Medio,
+            partesBlandas = new[] { "Oreja_Izq", "Oreja_Der" },
             colores = new Dictionary<string, Color>
             {
                 // Los mismos valores que en Blender. Se repiten aqui a
@@ -135,6 +139,8 @@ public static class PelucheBuilder
                              + "garra no lo sujetara ni con el motor al maximo.");
         }
 
+        Blandas(raiz, p.partesBlandas);
+
         MaquinaGarraBuilder.AsegurarCarpeta(CARPETA_PREFAB);
 
         string ruta = CARPETA_PREFAB + "/" + p.nombre + ".prefab";
@@ -147,11 +153,48 @@ public static class PelucheBuilder
             "[Peluche] {0} montado en {1}\n"
             + "  medidas ...... {2:F3} x {3:F3} x {4:F3} m\n"
             + "  materiales ... {5}\n"
-            + "  masa ......... {6:F2} kg",
+            + "  masa ......... {6:F2} kg\n"
+            + "  piezas blandas {7}",
             p.nombre, ruta, caja.size.x, caja.size.y, caja.size.z,
-            materiales.Count, item.GetWeightValue()));
+            materiales.Count, item.GetWeightValue(),
+            p.partesBlandas == null ? 0 : p.partesBlandas.Length));
 
         Selection.activeObject = guardado;
+    }
+
+    static void Blandas(GameObject raiz, string[] nombres)
+    {
+        if (nombres == null || nombres.Length == 0) return;
+
+        var encontradas = new List<Transform>();
+
+        foreach (string n in nombres)
+        {
+            Transform t = Buscar(raiz.transform, n);
+
+            if (t == null)
+            {
+                Debug.LogWarning("[Peluche] No encuentro la pieza blanda " + n);
+                continue;
+            }
+
+            encontradas.Add(t);
+        }
+
+        if (encontradas.Count == 0) return;
+
+        OrejasBlandas ob = raiz.AddComponent<OrejasBlandas>();
+        ob.orejas = encontradas.ToArray();
+    }
+
+    static Transform Buscar(Transform raiz, string nombre)
+    {
+        foreach (Transform t in raiz.GetComponentsInChildren<Transform>(true))
+        {
+            if (t.name == nombre) return t;
+        }
+
+        return null;
     }
 
     static Bounds Envolvente(GameObject go)
