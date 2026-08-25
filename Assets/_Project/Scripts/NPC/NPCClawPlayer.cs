@@ -28,6 +28,10 @@ public class NPCClawPlayer : MonoBehaviour
              + "daba la vuelta justo al ponerse a jugar.")]
     public float modelYawOffset = 0f;
 
+    [Tooltip("Cuanto se aleja mientras decide que hacer. Es el radio del paseo, "
+             + "no una distancia recorrida: da vueltas por ahi dentro.")]
+    public float wanderRadius = 2f;
+
     [Header("Visita")]
     public int extraMachineChanceOneIn = 3;
     public int maxMachinesPerVisit = 3;
@@ -296,7 +300,8 @@ public class NPCClawPlayer : MonoBehaviour
         // dar media vuelta en la puerta, entran, echan un vistazo y se van.
         if (played == 0 && browseWhenEmpty) yield return BrowseAround();
 
-        yield return new WaitForSeconds(waitAfterPlaying);
+        // Aqui es donde decide si repite maquina o se va. Paseando.
+        yield return EsperarPaseando(waitAfterPlaying, wanderRadius);
 
         if (entranceWaypoint != null)
         {
@@ -520,8 +525,10 @@ public class NPCClawPlayer : MonoBehaviour
         // Dejamos que el de delante se aparte antes de avanzar.
         if (queued)
         {
-            SetWalking(false);
-            yield return new WaitForSeconds(Random.Range(turnDelayMin, turnDelayMax));
+            // Sin alejarse: es su turno y no puede perder el sitio, pero
+            // moverse un poco es lo que hace cualquiera esperando en una cola.
+            yield return EsperarPaseando(Random.Range(turnDelayMin, turnDelayMax),
+                                         wanderRadius * 0.35f);
         }
 
         machine.currentNPCUser = this;
@@ -731,6 +738,40 @@ public class NPCClawPlayer : MonoBehaviour
         if (agent.pathPending) return false;
 
         return agent.remainingDistance <= Mathf.Max(agent.stoppingDistance, arriveDistance);
+    }
+
+    // Espera CAMINANDO en vez de quedarse tieso.
+    //
+    // Una persona que esta decidiendo que hacer no se queda clavada mirando al
+    // vacio: da un par de pasos, se acerca a mirar otra cosa, cambia de idea.
+    // Plantarlos inmoviles unos segundos es lo que los delata como maniquies,
+    // y encima justo en el momento en el que el jugador los esta mirando.
+    IEnumerator EsperarPaseando(float segundos, float radio)
+    {
+        float fin = Time.time + segundos;
+        Vector3 centro = transform.position;
+
+        while (Time.time < fin)
+        {
+            Vector3 destino;
+
+            // Sin sitio donde ir (un rincon, o el NavMesh no llega) se espera
+            // quieto, que es mejor que empujar contra una pared.
+            if (!PointNear(centro, radio, out destino))
+            {
+                SetWalking(false);
+                yield return null;
+                continue;
+            }
+
+            while (Time.time < fin && FlatDistance(transform.position, destino) > arriveDistance)
+            {
+                yield return MoveStep(destino);
+            }
+        }
+
+        StopAgent();
+        SetWalking(false);
     }
 
     IEnumerator MoveTo(Vector3 destination)
