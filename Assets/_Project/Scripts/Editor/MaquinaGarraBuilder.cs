@@ -361,6 +361,20 @@ public static class MaquinaGarraBuilder
         claw.fingerCloseAngle = AnguloDeCierre(dedos, puntas, centroBisagras);
         claw.insideGripRadius = 0.176f;
         claw.toyScatterSpread = 0.85f;
+
+        // Balanceo. Se quedaba con los valores por defecto del codigo, que son
+        // 9 grados de inclinacion: casi no se veia. Menos rigidez alarga el
+        // periodo y menos amortiguacion hace que tarde en calmarse, que es lo
+        // que obliga al jugador a parar antes y esperar.
+        claw.enableSwing = true;
+        claw.swingStiffness = 22f;
+        claw.swingDamping = 2f;
+        claw.swingTiltAmount = 30f;
+        claw.swingMaxTiltAngle = 34f;
+
+        // El escaparate es mas alto, asi que la bajada es mas larga. Sin subir
+        // la velocidad la garra tardaria una eternidad en llegar.
+        claw.armMoveSpeed = 0.6f;
         claw.insideGripHeightOffset = 0.08f;
         claw.obstacleCheckRadius = 0.096f;
         claw.forceNewtonsPerUnit = 1f;

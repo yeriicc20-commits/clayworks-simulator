@@ -574,6 +574,23 @@ public class ClawController : MonoBehaviour
             soporte.interpolation = RigidbodyInterpolation.Interpolate;
         }
 
+        // Los dedos SALEN de debajo del brazo.
+        //
+        // Un cuerpo con fisica no puede colgar de un transform que se reescribe
+        // cada fotograma. El balanceo le asigna al brazo su rotacion en cada
+        // Update, y eso teletransporta a los hijos: borra en el acto lo que
+        // acabase de hacer la bisagra, asi que los dedos no llegaban a cerrarse
+        // nunca por mucho que el motor empujase.
+        //
+        // A partir de aqui lo que los sujeta es la articulacion, no la
+        // jerarquia. Es el mismo patron que se usa en un ragdoll, y ademas hace
+        // que el balanceo del brazo los arrastre de forma fisica en vez de
+        // llevarlos pegados.
+        foreach (Transform dedo in fingers)
+        {
+            if (dedo != null && dedo.parent != transform) dedo.SetParent(transform, true);
+        }
+
         if (fingerMotors == null) fingerMotors = GetComponent<ClawFingerMotors>();
         if (fingerMotors == null) fingerMotors = gameObject.AddComponent<ClawFingerMotors>();
 
