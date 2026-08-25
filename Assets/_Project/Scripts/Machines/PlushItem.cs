@@ -81,7 +81,7 @@ public class PlushItem : MonoBehaviour
             if (b.size.sqrMagnitude < 1e-8f) continue;
 
             partes.Add(b);
-            mayor = Mathf.Max(mayor, b.size.magnitude);
+            mayor = Mathf.Max(mayor, Volumen(b));
         }
 
         if (partes.Count == 0) return;
@@ -90,8 +90,17 @@ public class PlushItem : MonoBehaviour
 
         foreach (Bounds b in partes)
         {
-            // Menos de un tercio de la pieza mayor es un adorno.
-            if (partes.Count > 1 && b.size.magnitude < mayor * 0.33f) continue;
+            // Se compara por VOLUMEN y no por la diagonal de la caja.
+            //
+            // Con la diagonal, una oreja larga y plana contaba como pieza
+            // grande: mide poco de ancho y de fondo, pero es larga, asi que su
+            // diagonal se acerca a la del cuerpo. Le tocaba collider, y una
+            // esfera colgando a un lado de la cabeza ensancha el peluche y lo
+            // deja sin caber en la garra.
+            //
+            // El volumen si distingue: una oreja abulta un 9% de lo que abulta
+            // el cuerpo, aunque sea casi igual de larga.
+            if (partes.Count > 1 && Volumen(b) < mayor * 0.2f) continue;
 
             Esfera(b);
             puestos++;
@@ -134,6 +143,11 @@ public class PlushItem : MonoBehaviour
         // otros, que es exactamente lo que hace un monton de peluches.
         s.radius = medio * colliderShrink;
         s.sharedMaterial = physicsMaterial;
+    }
+
+    static float Volumen(Bounds b)
+    {
+        return b.size.x * b.size.y * b.size.z;
     }
 
     // Caja de una malla en el espacio del peluche, pasando sus ocho esquinas.

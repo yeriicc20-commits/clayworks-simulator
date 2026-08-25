@@ -3845,6 +3845,7 @@ MonoBehaviour:
   grabDepth: 0.85
   fingerMotors: {fileID: 3621684585994608460}
   audio3d: {fileID: 3776847804154158901}
+  monedaEspera: 1
   useRealisticGripPhysics: 1
   gripForcePlayerMin: 1
   gripForcePlayerMax: 10
@@ -3897,8 +3898,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ClawAudio
   moneda: {fileID: 8300000, guid: ed7d1343a86dbf44383d6ba6cf6e99c3, type: 3}
-  aviso: {fileID: 0}
-  alarma: {fileID: 0}
+  aviso: {fileID: 8300000, guid: 75c78987465682d46ab779ff4afbb106, type: 3}
+  alarma: {fileID: 8300000, guid: e1afbc8a20299ea48809dd12fe5215fe, type: 3}
   boton: {fileID: 8300000, guid: 8565e101f91f8704fafb6114b1be0d92, type: 3}
   garraCierra: {fileID: 8300000, guid: 2dc5a4a33b5e00044bfeda712f44ea00, type: 3}
   garraAbre: {fileID: 8300000, guid: 35636fff0949f2246bd02ee271d134e7, type: 3}
