@@ -60,7 +60,7 @@ public static class PelucheBuilder
         EditorApplication.delayCall += Comprobar;
     }
 
-    static void Comprobar()
+    public static void Comprobar()
     {
         EditorApplication.delayCall -= Comprobar;
 
@@ -274,5 +274,37 @@ public static class PelucheBuilder
 
             if (tocado) r.sharedMaterials = mats;
         }
+    }
+}
+
+
+// Rehace el prefab en cuanto se reimporta el modelo.
+//
+// Sin esto solo se comprobaba al recompilar, y si el modelo cambiaba sin tocar
+// ningun .cs el prefab se quedaba con las posiciones viejas apuntando a las
+// mallas nuevas: el peluche sale despiezado, con la cabeza flotando y las
+// orejas por su cuenta. Desde fuera parece un fallo de fisica y se pierde el
+// rato buscando donde no es. Ya paso con la maquina.
+public class PelucheAutoBuild : AssetPostprocessor
+{
+    static void OnPostprocessAllAssets(string[] importados, string[] borrados,
+                                       string[] movidos, string[] movidosDesde)
+    {
+        foreach (string ruta in importados)
+        {
+            if (!ruta.EndsWith(.fbx)) continue;
+            if (!ruta.StartsWith(Assets/_Project/Models/)) continue;
+
+            // En diferido: durante la importacion Unity no deja crear ni
+            // guardar assets.
+            EditorApplication.delayCall += Rehacer;
+            return;
+        }
+    }
+
+    static void Rehacer()
+    {
+        EditorApplication.delayCall -= Rehacer;
+        PelucheBuilder.Comprobar();
     }
 }
