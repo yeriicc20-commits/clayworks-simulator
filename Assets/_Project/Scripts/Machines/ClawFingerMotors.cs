@@ -60,6 +60,11 @@ public class ClawFingerMotors : MonoBehaviour
              + "se reparten por abajo. 0,12 = una de cada ocho, mas o menos.")]
     [Range(0f, 1f)] public float generousChance = 0.12f;
 
+    [Tooltip("Lo que marca el mando del cuadro trasero, de 0 a 1. Es la corriente "
+             + "que el dueno le da al motor, no la dificultad del juego: sube el "
+             + "techo de las partidas flojas y con el todo lo demas.")]
+    [Range(0f, 1f)] public float ajuste = 0.35f;
+
     [Header("Rozamiento")]
     [Tooltip("Material de los dedos. Sin rozamiento alto no sujeta nada, por "
              + "mucho par que tenga el motor.")]
@@ -174,11 +179,17 @@ public class ClawFingerMotors : MonoBehaviour
     // maquina real, bajando la corriente del motor salvo cada tantas jugadas.
     public float ParaEstaPartida()
     {
+        // El mando de la trasera pone el techo de una partida normal. Las
+        // generosas se saltan ese techo y tiran hacia el maximo del motor, que
+        // es lo que hace que de vez en cuando la maquina pague aunque este
+        // regulada floja.
+        float techo = Mathf.Lerp(torqueMin, torqueMax, Mathf.Clamp01(ajuste));
+
         bool generosa = Random.value < generousChance;
 
         parActual = generosa
-            ? Random.Range(Mathf.Lerp(torqueMin, torqueMax, 0.7f), torqueMax)
-            : Random.Range(torqueMin, Mathf.Lerp(torqueMin, torqueMax, 0.45f));
+            ? Random.Range(Mathf.Lerp(techo, torqueMax, 0.5f), torqueMax)
+            : Random.Range(torqueMin, techo);
 
         return parActual;
     }

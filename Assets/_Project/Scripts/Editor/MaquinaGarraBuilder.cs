@@ -270,6 +270,44 @@ public static class MaquinaGarraBuilder
                                   todo.center.y,
                                   bordeFrente + frente * FONDO_ZONA * 0.5f);
 
+        // Se crea aqui porque el mando de la trasera lo necesita ya montado.
+        ClawFingerMotors motores = raiz.AddComponent<ClawFingerMotors>();
+
+        // ------------------------------------------- mando de fuerza, detras
+        // Va en su propio objeto con su propio trigger: OnTriggerEnter salta en
+        // el GameObject del componente, y el de los avisos de jugar ya esta
+        // ocupado en la raiz mirando al frente.
+        Transform aguja = piezas.ContainsKey("Fuerza_Aguja") ? piezas["Fuerza_Aguja"] : null;
+
+        if (aguja != null)
+        {
+            float bordeTrasero = frente > 0f ? todo.min.z : todo.max.z;
+
+            GameObject zonaFuerza = new GameObject("ZonaFuerza");
+            zonaFuerza.transform.SetParent(raiz.transform, false);
+
+            BoxCollider tf = zonaFuerza.AddComponent<BoxCollider>();
+            tf.isTrigger = true;
+            tf.size = new Vector3(todo.size.x * 0.8f, todo.size.y, 0.8f);
+            tf.center = new Vector3(todo.center.x, todo.center.y,
+                                    bordeTrasero - frente * 0.4f);
+
+            ClawStrengthDial mando = zonaFuerza.AddComponent<ClawStrengthDial>();
+            mando.motores = motores;
+            mando.aguja = aguja;
+
+            // La aguja gira sobre el eje que sale de la esfera. Con la
+            // conversion a FBX ese eje acaba siendo el Z del mundo, y como la
+            // pieza viene sin rotacion propia, su local y el del mundo son el
+            // mismo.
+            mando.ejeAguja = Vector3.forward;
+        }
+        else
+        {
+            Debug.LogWarning("[Maquina] No encuentro Fuerza_Aguja: la maquina se "
+                             + "queda sin mando de fuerza en la trasera.");
+        }
+
         // ------------------------------------------------------- materiales
         // Los del FBX se descartan: Unity los importa con el shader que le
         // parece y en URP salen rosas. Estos son de URP y estan controlados.
@@ -367,9 +405,14 @@ public static class MaquinaGarraBuilder
         // periodo y menos amortiguacion hace que tarde en calmarse, que es lo
         // que obliga al jugador a parar antes y esperar.
         claw.enableSwing = true;
-        claw.swingStiffness = 22f;
-        claw.swingDamping = 2f;
-        claw.swingTiltAmount = 30f;
+
+        // El periodo de un muelle va con la raiz de su rigidez, asi que subirla
+        // de 22 a 55 hace el vaiven casi vez y media mas rapido. Y con mas
+        // amortiguacion no se vuelve mas lento: responde antes al mando y deja
+        // de arrastrar el bamboleo de hace tres segundos.
+        claw.swingStiffness = 55f;
+        claw.swingDamping = 3.5f;
+        claw.swingTiltAmount = 32f;
         claw.swingMaxTiltAngle = 34f;
 
         // Despacio. Una garra de verdad baja con calma, y ademas es lo que le
@@ -415,7 +458,6 @@ public static class MaquinaGarraBuilder
         PhysicsMaterial agarre = AssetDatabase.LoadAssetAtPath<PhysicsMaterial>(
             "Assets/_Project/Physics/GarraAgarre.physicMaterial");
 
-        ClawFingerMotors motores = raiz.AddComponent<ClawFingerMotors>();
         motores.closedAngle = claw.fingerCloseAngle;
         motores.gripMaterial = agarre;
         claw.fingerMotors = motores;
