@@ -577,19 +577,22 @@ public static class MaquinaGarraBuilder
         // acabar de cerrar. Con 0,7 sobra un 39%.
         claw.closeBeforeLiftDelay = 0.7f;
 
-        // Cuanto tienen que haberse cerrado los brazos para que cuente.
+        // Cuanto tiene que haberse cerrado la boca para que cuente como agarre.
         //
-        // A un cuarto del cierre la boca mide 171 mm, asi que se lleva cualquier
-        // cosa de menos de eso: la cabeza de Panxeta son 146 y le sobran 25. Lo
-        // que deja fuera es el peluche que solo se ha quedado encajado, con la
-        // garra practicamente abierta, que ahi la boca ronda los 210.
+        // Se mide la boca y no el angulo de las bisagras. El angulo lleva el
+        // signo del eje de la articulacion, los tres dedos tienen ejes
+        // distintos, y basta con que uno salga invertido para que el minimo de
+        // los tres sea siempre cero: con eso el filtro rechazaba TODOS los
+        // agarres. Una distancia no tiene ese problema.
         //
-        //   cierre    grados    boca
-        //      0%       0,0    226 mm
-        //     25%       9,1    171 mm
-        //     33%      12,0    152 mm
-        //     50%      18,2    113 mm
-        claw.cierreMinimoParaAgarrar = 0.25f;
+        // Con la boca en reposo a 226 mm, el limite del 18% deja pasar
+        // cualquier cosa de menos de 185 mm:
+        //
+        //   garra en reposo .................. 226 mm     0%
+        //   peluche solo encajado ............ 210 mm     7%   <- se rechaza
+        //   limite ........................... 185 mm    18%
+        //   cogiendo la cabeza de Panxeta .... 146 mm    35%   <- se acepta
+        claw.cierreMinimoParaAgarrar = 0.18f;
 
         claw.fingerMotors = motores;
 

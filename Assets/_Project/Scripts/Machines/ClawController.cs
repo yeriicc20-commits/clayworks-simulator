@@ -109,10 +109,11 @@ public class ClawController : MonoBehaviour
              + "un solapamiento y parpadea con el balanceo.")]
     public float tiempoParaDarPorPerdido = 0.15f;
 
-    [Tooltip("Que fraccion del cierre total tienen que haber recorrido los "
-             + "brazos para que cuente como agarre. Con esto en cero, un peluche "
-             + "encajado contra la cabeza sube con la garra abierta.")]
-    [Range(0f, 0.8f)] public float cierreMinimoParaAgarrar = 0.25f;
+    [Tooltip("Cuanto tiene que haberse cerrado la BOCA de la garra respecto a "
+             + "como esta en reposo para que cuente como agarre. Con esto en "
+             + "cero, un peluche encajado contra la cabeza sube con la garra "
+             + "abierta de par en par.")]
+    [Range(0f, 0.6f)] public float cierreMinimoParaAgarrar = 0.18f;
 
     [Header("Giro de la garra sobre su eje")]
     [Tooltip("La garra se retuerce sola sobre el cable, hacia un lado y hacia "
@@ -1706,22 +1707,39 @@ public class ClawController : MonoBehaviour
 
     // Si los brazos han llegado a cerrarse lo bastante como para que cuente.
     //
-    // Esto vivia DENTRO de PelucheEnLaGarra, y ahi hacia un destrozo: esa
-    // funcion es la que decide si hay premio al final, y tambien la que vigila
-    // si el peluche se ha caido por el camino. Con el filtro dentro, un agarre
-    // flojo pero real (un peluche gordo, que los dedos apenas pueden cerrar) se
-    // daba por perdido en pleno viaje y al llegar sonaba el de haber perdido con
-    // el peluche cayendo en el cajon.
+    // Se mide la BOCA: lo que hay del eje a las puntas, comparado con lo que
+    // hay en reposo. Antes se preguntaba por el angulo de las bisagras, y eso
+    // no se podia dar por bueno: HingeJoint.angle lleva el signo del eje de la
+    // articulacion, los tres dedos tienen ejes distintos, y basta con que UNO
+    // salga invertido para que el minimo de los tres sea siempre cero. Con eso,
+    // el filtro rechazaba TODOS los agarres, tuviera la fuerza que tuviera.
     //
-    // Ahora solo se pregunta UNA vez, al confirmar el agarre. A partir de ahi
-    // manda la fisica: si aguanta, aguanta.
+    // La boca no tiene ese problema: es una distancia, no lleva signo, y ademas
+    // es lo que de verdad importa aqui. Los numeros salen de la geometria del
+    // dedo, no de probar:
+    //
+    //   garra en reposo ............ boca de 226 mm   cerrada  0%
+    //   peluche encajado, abierta .. boca de 210 mm   cerrada  7%
+    //   limite .....................                  cerrada 18%
+    //   cogiendo la cabeza de Panxeta boca de 146 mm  cerrada 35%
+    //
+    // Y se pregunta UNA sola vez, al confirmar el agarre. Estuvo dentro de
+    // PelucheEnLaGarra, que es la que decide si hay premio al final Y la que
+    // vigila si se ha caido por el camino: ahi dentro, un agarre flojo pero
+    // real se daba por perdido en pleno viaje.
     bool CierreSuficiente()
     {
-        if (!ConMotores || fingerMotors == null || !fingerMotors.Listo) return true;
+        if (!ConMotores || hingePoint == null || radioReposo <= 0.001f) return true;
 
-        float falta = Mathf.Abs(fingerCloseAngle) * cierreMinimoParaAgarrar;
+        float boca = RadioGarra();
+        float cerrada = 1f - boca / radioReposo;
 
-        return fingerMotors.CierreMinimo() >= falta;
+        Debug.Log(string.Format(
+            "[Garra] Boca {0:F0} mm de {1:F0} en reposo: cerrada al {2:P0} "
+            + "(hace falta {3:P0})",
+            boca * 2000f, radioReposo * 2000f, cerrada, cierreMinimoParaAgarrar));
+
+        return cerrada >= cierreMinimoParaAgarrar;
     }
 
     Rigidbody PelucheEnLaGarra()
