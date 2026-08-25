@@ -26,7 +26,11 @@ public static class MaquinaGarraBuilder
     const int CAPA_CARCASA = 11;
 
     // Holgura de la garra con el cristal, para que no lo roce al ir al limite.
-    const float MARGEN_CRISTAL = 0.03f;
+    const float MARGEN_CRISTAL = 0.02f;
+
+    // A que radio del eje quedan las puntas con la garra cerrada del todo.
+    // No cero: si se cruzan, los dedos se atraviesan entre ellos.
+    const float CIERRE_OBJETIVO = 0.02f;
 
     // A que altura sobre el suelo se para la garra al bajar del todo.
     const float HOLGURA_SUELO = 0.015f;
@@ -91,6 +95,20 @@ public static class MaquinaGarraBuilder
         Bounds cristal = Envolvente(piezas, "Cristal_Frente", "Cristal_Atras",
                                     "Cristal_Izq", "Cristal_Der");
         Bounds boca = Envolvente(piezas, "Boca_Labio_");
+
+        // Hueco LIBRE, de cara interior a cara interior. Antes se usaba la
+        // envolvente de los cuatro cristales, que incluye su grosor: se perdia
+        // un centimetro de recorrido por cada lado sin motivo.
+        Bounds cIzq = Envolvente(piezas, "Cristal_Izq");
+        Bounds cDer = Envolvente(piezas, "Cristal_Der");
+        Bounds cFre = Envolvente(piezas, "Cristal_Frente");
+        Bounds cAtr = Envolvente(piezas, "Cristal_Atras");
+
+        float huecoX0 = cIzq.max.x, huecoX1 = cDer.min.x;
+        float huecoZ0 = Mathf.Min(cFre.max.z, cAtr.max.z);
+        float huecoZ1 = Mathf.Max(cFre.min.z, cAtr.min.z);
+
+        if (huecoZ0 > huecoZ1) { float t = huecoZ0; huecoZ0 = huecoZ1; huecoZ1 = t; }
         Bounds cajaCarro = Envolvente(piezas, "Carro");
 
         Transform puente = piezas["Puente"];
@@ -161,14 +179,39 @@ public static class MaquinaGarraBuilder
 
         GameObject spawn = new GameObject("ToySpawnPoint");
         spawn.transform.SetParent(raiz.transform, false);
-        spawn.transform.position = new Vector3(cristal.center.x, suelo.max.y + 0.35f, cristal.center.z);
+        // A un palmo del suelo. Antes estaba a 35 cm y ClawController le suma
+        // otros 20 de caida: los peluches nacian justo a la altura de la garra,
+        // dentro de ella, y salian disparados en cuanto PhysX los separaba.
+        spawn.transform.position = new Vector3(cristal.center.x, suelo.max.y + 0.05f, cristal.center.z);
 
-        // El sitio del NPC va delante de la maquina. El frente es -Z, que es
-        // por donde estan la consola y la trampilla.
+        // De que lado esta el frente. NO se da por supuesto: se mira donde ha
+        // quedado la consola.
+        //
+        // Aqui me equivoque la primera vez. Di por hecho que el frente era -Z
+        // porque en Blender la consola esta en -Y, pero la exportacion a FBX
+        // invierte ese eje: acabo en +Z. Resultado, los avisos y el sitio del
+        // NPC quedaron detras de la maquina. Deducirlo de una pieza que solo
+        // puede estar delante no se puede equivocar.
+        Transform consola = piezas.ContainsKey("Consola_Cuerpo") ? piezas["Consola_Cuerpo"] : null;
+
+        float frente = -1f;
+
+        if (consola != null)
+        {
+            frente = Mathf.Sign(consola.position.z - todo.center.z);
+        }
+        else
+        {
+            Debug.LogWarning("[Maquina] No encuentro Consola_Cuerpo para saber que "
+                             + "lado es el de delante. Tiro de -Z, que puede estar mal.");
+        }
+
+        float bordeFrente = frente > 0f ? todo.max.z : todo.min.z;
+
         GameObject sitioNPC = new GameObject("NPC_MachineSpot");
         sitioNPC.transform.SetParent(raiz.transform, false);
-        sitioNPC.transform.position = new Vector3(todo.center.x, 0f, todo.min.z - 0.55f);
-        sitioNPC.transform.rotation = Quaternion.LookRotation(Vector3.forward);
+        sitioNPC.transform.position = new Vector3(todo.center.x, 0f, bordeFrente + frente * 0.55f);
+        sitioNPC.transform.rotation = Quaternion.LookRotation(new Vector3(0f, 0f, -frente));
 
         // -------------------------------------------------- cable de la garra
         Transform cable = piezas.ContainsKey("Cable") ? piezas["Cable"] : null;
@@ -221,7 +264,7 @@ public static class MaquinaGarraBuilder
         zona.size = new Vector3(todo.size.x + 0.4f, todo.size.y, FONDO_ZONA);
         zona.center = new Vector3(todo.center.x,
                                   todo.center.y,
-                                  todo.min.z - FONDO_ZONA * 0.5f);
+                                  bordeFrente + frente * FONDO_ZONA * 0.5f);
 
         // ------------------------------------------------------- materiales
         // Los del FBX se descartan: Unity los importa con el shader que le
@@ -278,8 +321,8 @@ public static class MaquinaGarraBuilder
 
         // Limites de recorrido, medidos del cristal y del tamano de la garra.
         // El puente lleva el carro, asi que su X manda; el carro pone la Z.
-        float alcanceX = cristal.extents.x - radioGarra - MARGEN_CRISTAL;
-        float alcanceZ = cristal.extents.z - radioGarra - MARGEN_CRISTAL;
+        float alcanceX = (huecoX1 - huecoX0) * 0.5f - radioGarra - MARGEN_CRISTAL;
+        float alcanceZ = (huecoZ1 - huecoZ0) * 0.5f - radioGarra - MARGEN_CRISTAL;
 
         float centroX = puente.localPosition.x;
         float centroZ = carro.localPosition.z;
@@ -299,8 +342,9 @@ public static class MaquinaGarraBuilder
         claw.armMoveSpeed = 0.5f;
         claw.detectionRadius = 0.24f;
         claw.gripHeightOffset = 0.05f;
-        claw.fingerCloseAngle = -48f;
+        claw.fingerCloseAngle = AnguloDeCierre(dedos, puntas, centroBisagras);
         claw.insideGripRadius = 0.176f;
+        claw.toyScatterSpread = 0.85f;
         claw.insideGripHeightOffset = 0.08f;
         claw.obstacleCheckRadius = 0.096f;
         claw.forceNewtonsPerUnit = 1f;
@@ -364,6 +408,58 @@ public static class MaquinaGarraBuilder
 
         AsegurarCarpeta(padre);
         AssetDatabase.CreateFolder(padre, hoja);
+    }
+
+    // Cuanto tiene que girar cada dedo para cerrar del todo.
+    //
+    // Se saca de la geometria, no a ojo. El dedo gira alrededor de un eje
+    // tangencial que pasa por su bisagra, asi que su punta describe un arco en
+    // el plano radial-vertical. Con la punta a distancia "a" hacia fuera de la
+    // bisagra y "b" hacia abajo, al girar un angulo f hacia dentro queda a
+    // radio  R + a*cos(f) - b*sin(f)  del eje de la garra.
+    //
+    // Se busca el primer angulo que deja las puntas a CIERRE_OBJETIVO del eje.
+    // El valor que habia puesto, -48 grados, venia del modelo anterior: con
+    // esta garra las puntas se cruzaban 2,3 cm PASADO el eje, o sea que los
+    // dedos se atravesaban entre si en vez de cerrar.
+    static float AnguloDeCierre(Transform[] dedos, Transform[] puntas, Vector3 bisagra)
+    {
+        float peor = 90f;
+
+        for (int i = 0; i < dedos.Length; i++)
+        {
+            if (dedos[i] == null || puntas[i] == null) continue;
+
+            float radioBisagra = Horizontal(dedos[i].position - bisagra);
+            float radioPunta = Horizontal(puntas[i].position - bisagra);
+
+            float a = radioPunta - radioBisagra;
+            float b = dedos[i].position.y - puntas[i].position.y;
+
+            if (b <= 0.001f) continue;   // punta por encima de la bisagra: raro
+
+            float encontrado = 90f;
+
+            for (float f = 0f; f <= 90f; f += 0.5f)
+            {
+                float r = radioBisagra + a * Mathf.Cos(f * Mathf.Deg2Rad)
+                                       - b * Mathf.Sin(f * Mathf.Deg2Rad);
+
+                if (r <= CIERRE_OBJETIVO) { encontrado = f; break; }
+            }
+
+            peor = Mathf.Min(peor, encontrado);
+        }
+
+        // Negativo = hacia dentro. ClawController gira sobre cross(radial, up),
+        // y con esa convencion el signo positivo ABRE la garra.
+        return -peor;
+    }
+
+    static float Horizontal(Vector3 v)
+    {
+        v.y = 0f;
+        return v.magnitude;
     }
 
     // ------------------------------------------------------------- ayudantes
