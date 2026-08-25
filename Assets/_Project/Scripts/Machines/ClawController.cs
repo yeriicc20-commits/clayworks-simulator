@@ -1084,7 +1084,19 @@ public class ClawController : MonoBehaviour
             int validContactsRealistic = CountValidFingerContacts();
             Debug.Log($"[ClawDiag] After live-grip closing: validContacts={validContactsRealistic}/{requiredContactCount} activeJoints={ActiveFingerJointCount()} gripForceRating={currentGripForceRating:F2}");
 
-            jointExistsAfterAttempt = ActiveFingerJointCount() > 0;
+            if (ConMotores)
+            {
+                heldPlushRb = PelucheEnLaGarra();
+                jointExistsAfterAttempt = heldPlushRb != null;
+
+                Debug.Log(heldPlushRb != null
+                    ? "[Garra] Sube con " + heldPlushRb.name + ", agarrado por rozamiento"
+                    : "[Garra] Ha subido de vacio");
+            }
+            else
+            {
+                jointExistsAfterAttempt = ActiveFingerJointCount() > 0;
+            }
 
             emptyCloseRoutine = StartCoroutine(FinishClosingUnjointedFingers(fingerCloseAngle));
 
@@ -1092,7 +1104,9 @@ public class ClawController : MonoBehaviour
             {
                 yield return new WaitForSeconds(grabVerificationDelay);
 
-                bool stillHeld = ActiveFingerJointCount() > 0;
+                bool stillHeld = ConMotores
+                                 ? PelucheEnLaGarra() != null
+                                 : ActiveFingerJointCount() > 0;
 
                 if (stillHeld)
                 {
@@ -1252,12 +1266,24 @@ public class ClawController : MonoBehaviour
     {
         Rigidbody droppedRb = heldPlushRb;
 
-        while (ActiveFingerJointCount() > 0)
+        // Se vigila hasta que deja de estar. Con rozamiento puro esto puede
+        // pasar en cualquier momento: al subir, al desplazarse o justo encima
+        // del agujero, que es lo que se pidio.
+        while (true)
         {
-            if (!PlushIsInsideGrip(droppedRb))
+            if (ConMotores)
             {
-                ReleaseAllFingerJoints();
-                break;
+                if (PelucheEnLaGarra() == null) break;
+            }
+            else
+            {
+                if (ActiveFingerJointCount() <= 0) break;
+
+                if (!PlushIsInsideGrip(droppedRb))
+                {
+                    ReleaseAllFingerJoints();
+                    break;
+                }
             }
 
             yield return null;
@@ -1390,6 +1416,49 @@ public class ClawController : MonoBehaviour
         }
 
         return y == float.MaxValue ? hingePoint.position.y : y;
+    }
+
+    // Que peluche lleva la garra, mirado en la fisica y no en las uniones.
+    //
+    // Aqui estaba el fallo de "a 100% de fuerza tampoco agarra". Todo el juego
+    // preguntaba por las uniones invisibles para saber si habia premio, y con
+    // rozamiento puro no se crea ninguna: siempre salia cero. Fisicamente la
+    // garra podia estar subiendo el peluche perfectamente agarrado y el juego
+    // no se enteraba, asi que no lo daba por cogido ni lo cobraba.
+    //
+    // Sin uniones, la unica prueba honesta es mirar si el peluche sigue ahi
+    // arriba cuando la garra ya ha subido. Si esta dentro del hueco de la garra
+    // con la garra en alto, es que va agarrado; no hay otra forma de que haya
+    // llegado hasta ahi.
+    Rigidbody PelucheEnLaGarra()
+    {
+        if (hingePoint == null) return null;
+
+        float alcance = Mathf.Max(0.01f, hingePoint.position.y - PuntaMasBaja());
+        float radio = Mathf.Max(0.05f, RadioGarra() * 1.2f);
+
+        Vector3 centro = hingePoint.position + Vector3.down * (alcance * 0.5f);
+
+        Collider[] tocando = Physics.OverlapSphere(centro, radio, plushLayer,
+                                                   QueryTriggerInteraction.Ignore);
+
+        Rigidbody mejor = null;
+        float masCerca = float.MaxValue;
+
+        foreach (Collider c in tocando)
+        {
+            if (c == null || c.attachedRigidbody == null) continue;
+
+            float d = Vector3.Distance(c.ClosestPoint(centro), centro);
+
+            if (d < masCerca)
+            {
+                masCerca = d;
+                mejor = c.attachedRigidbody;
+            }
+        }
+
+        return mejor;
     }
 
     float RadioGarra()

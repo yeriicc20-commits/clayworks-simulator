@@ -187,9 +187,13 @@ public class ClawFingerMotors : MonoBehaviour
 
         bool generosa = Random.value < generousChance;
 
+        // El sorteo va del 60% del techo al techo, no del minimo al techo.
+        // Repartiendo desde el minimo, ni con el mando al maximo se notaba:
+        // seguian saliendo partidas flojas la mitad de las veces. Asi el mando
+        // manda de verdad, y aun asi cada partida sale un poco distinta.
         parActual = generosa
             ? Random.Range(Mathf.Lerp(techo, torqueMax, 0.5f), torqueMax)
-            : Random.Range(torqueMin, techo);
+            : Random.Range(Mathf.Lerp(torqueMin, techo, 0.6f), techo);
 
         return parActual;
     }
