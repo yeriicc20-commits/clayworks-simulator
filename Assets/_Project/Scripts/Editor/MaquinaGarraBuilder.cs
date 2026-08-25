@@ -165,12 +165,33 @@ public static class MaquinaGarraBuilder
             puntas[i] = punta.transform;
         }
 
-        // Anclaje del balanceo: donde sale el cable, o sea la base del carro.
+        // Anclaje del balanceo: por donde sale el cable.
+        //
+        // El eje se saca del propio cable, NO del centro de la caja del carro.
+        // El carro lleva el motor pegado a un lado, asi que su envolvente esta
+        // descentrada 13 mm respecto al eje por el que sale el cable de verdad.
+        // Anclando ahi salian dos cosas mal a la vez: el cable se dibujaba en
+        // diagonal en vez de recto, y el balanceo pivotaba fuera de su sitio, de
+        // modo que la garra colgaba torcida hasta en reposo.
+        //
+        // Un cilindro de 6 mm no tiene ese problema: su centro ES el eje.
+        //
         // Tiene que ser hermano del brazo porque ClawController compara sus
         // posiciones LOCALES.
+        Bounds cajaCable = piezas.ContainsKey("Cable")
+                           ? Envolvente(piezas, "Cable") : cajaCarro;
+
+        if (!piezas.ContainsKey("Cable"))
+        {
+            Debug.LogWarning("[Maquina] No encuentro la pieza Cable, asi que tiro "
+                             + "del centro del carro para anclar el balanceo. Si "
+                             + "el carro no es simetrico, el cable saldra torcido.");
+        }
+
         GameObject anclaje = new GameObject("SwingAnchor");
         anclaje.transform.SetParent(carro, false);
-        anclaje.transform.position = new Vector3(cajaCarro.center.x, cajaCarro.min.y, cajaCarro.center.z);
+        anclaje.transform.position = new Vector3(cajaCable.center.x, cajaCarro.min.y,
+                                                 cajaCable.center.z);
 
         // ------------------------------------------------------- marcadores
         GameObject zonaPremio = new GameObject("PrizeDropZone");

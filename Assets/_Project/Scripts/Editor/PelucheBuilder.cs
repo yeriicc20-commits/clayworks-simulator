@@ -240,6 +240,20 @@ public static class PelucheBuilder
 
         OrejasBlandas ob = raiz.AddComponent<OrejasBlandas>();
         ob.orejas = encontradas.ToArray();
+
+        // Puestos a mano y no dejados por defecto.
+        //
+        // El prefab guarda estos numeros dentro, asi que cambiar el valor por
+        // defecto en OrejasBlandas.cs no toca nada: el prefab sigue con el que
+        // se guardo el dia que se monto, y solo se entera si algo lo obliga a
+        // rehacerse. Este builder solo se fija en su propia fecha, con lo que un
+        // ajuste en el script de las orejas se quedaba sin aplicar y parecia que
+        // no habia servido de nada. Escribiendolos aqui, la fuente es una sola.
+        ob.rigidez = 90f;
+        ob.amortiguacion = 14f;
+        ob.respuesta = 1f;
+        ob.anguloMaximo = 80f;
+        ob.desigualdad = 0.18f;
     }
 
     static Transform Buscar(Transform raiz, string nombre)
