@@ -3175,9 +3175,9 @@ MonoBehaviour:
   limitZMax: 0.3009341
   armDownY: -0.58802545
   armUpY: 0
-  armMoveSpeed: 0.6
-  armAcceleration: 3
-  armDeceleration: 5
+  armMoveSpeed: 0.32
+  armAcceleration: 1.2
+  armDeceleration: 2
   detectionRadius: 0.24
   detectionHeightOffset: 0.2
   gripHeightOffset: 0.05

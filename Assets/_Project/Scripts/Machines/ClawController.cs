@@ -348,13 +348,23 @@ public class ClawController : MonoBehaviour
     {
         isControllable = false;
 
-        clawHeadRb = clawHead.GetComponent<Rigidbody>();
-        if (clawHeadRb == null)
+        // La cabeza solo necesita cuerpo propio si va a colgar de un cable
+        // fisico. Si no, es una pieza mas del brazo y su collider debe formar
+        // parte del de el.
+        //
+        // Ponerselo siempre metia un Rigidbody DENTRO de otro Rigidbody, que es
+        // pedirle a PhysX que obedezca a dos amos: la jerarquia de transforms
+        // mueve al hijo por un lado y el motor de fisica por otro.
+        if (usePhysicalCable)
         {
-            clawHeadRb = clawHead.gameObject.AddComponent<Rigidbody>();
+            clawHeadRb = clawHead.GetComponent<Rigidbody>();
+            if (clawHeadRb == null)
+            {
+                clawHeadRb = clawHead.gameObject.AddComponent<Rigidbody>();
+            }
+            clawHeadRb.isKinematic = true;
+            clawHeadRb.useGravity = false;
         }
-        clawHeadRb.isKinematic = true;
-        clawHeadRb.useGravity = false;
 
         SetUpCarriage();
 
@@ -413,6 +423,15 @@ public class ClawController : MonoBehaviour
                 fingerHingeLocal[i] = hingePoint.position;
                 fingerAxisLocal[i] = fingerRotationAxis[i];
             }
+
+            // Esto es del sistema viejo de uniones invisibles: cada punta
+            // necesitaba un cuerpo al que colgar la union con el peluche.
+            //
+            // Con motores no solo sobra, sino que estropea todo. La punta es
+            // HIJA del dedo, y el dedo pasa a ser un cuerpo dinamico: meterle
+            // dentro un cuerpo CINEMATICO es pedirle a PhysX que obedezca a dos
+            // amos a la vez. De ahi que los dedos hicieran cosas raras.
+            if (useMotorFingers) continue;
 
             Transform jointHost = GetJointHost(i);
             Rigidbody hostRb = jointHost.GetComponent<Rigidbody>();
@@ -582,7 +601,23 @@ public class ClawController : MonoBehaviour
         // de el, y los dedos se quedan tiesos en el aire.
         soporte.sleepThreshold = 0f;
 
-        // Los dedos SALEN de debajo del brazo.
+        // El BRAZO sale de debajo del carro.
+        //
+        // El carro ya es un cuerpo cinematico. Colgar de el otro cuerpo
+        // cinematico es lo que hacia que nada se estuviese quieto: la jerarquia
+        // de transforms mueve al hijo por un lado y PhysX lo mueve por otro con
+        // MovePosition, y las dos versiones no coinciden nunca del todo. Queda
+        // un ancla que tiembla, y unas bisagras colgadas de un ancla que tiembla
+        // hacen justo lo que se veia.
+        //
+        // Fuera de la jerarquia, al brazo no le toca el transform nadie mas: se
+        // coloca por coordenadas de mundo calculadas desde el carro.
+        if (clawArm != null && clawArm.parent != transform)
+        {
+            clawArm.SetParent(transform, true);
+        }
+
+        // Y los dedos SALEN de debajo del brazo.
         //
         // Un cuerpo con fisica no puede colgar de un transform que se reescribe
         // cada fotograma. El balanceo le asigna al brazo su rotacion en cada
@@ -710,17 +745,23 @@ public class ClawController : MonoBehaviour
     // sabe seguir.
     void ColocarBrazo(Vector3 localPos, Quaternion localRot)
     {
+        // localPos y localRot siguen expresados en el espacio del CARRO, aunque
+        // el brazo ya no cuelgue de el: el resto del codigo razona en esas
+        // coordenadas (armDownY, armBaseLocalPos) y no hay motivo para cambiarlo.
+        Transform marco = railZ != null ? railZ : transform;
+
+        Vector3 mundoPos = marco.TransformPoint(localPos);
+        Quaternion mundoRot = marco.rotation * localRot;
+
         if (armRb != null && armRb.isKinematic)
         {
-            Transform padre = clawArm.parent;
-
-            armRb.MovePosition(padre != null ? padre.TransformPoint(localPos) : localPos);
-            armRb.MoveRotation(padre != null ? padre.rotation * localRot : localRot);
+            armRb.MovePosition(mundoPos);
+            armRb.MoveRotation(mundoRot);
             return;
         }
 
-        clawArm.localPosition = localPos;
-        clawArm.localRotation = localRot;
+        clawArm.position = mundoPos;
+        clawArm.rotation = mundoRot;
         Physics.SyncTransforms();
     }
 
