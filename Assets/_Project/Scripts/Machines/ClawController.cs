@@ -308,6 +308,7 @@ public class ClawController : MonoBehaviour
     private FixedJoint currentJoint;
     private Rigidbody clawHeadRb;
     private Rigidbody carriageRb;
+    private Rigidbody armRb;
     private ConfigurableJoint cableJoint;
     private Vector3 cableAnchorLocal;
     private float cableBaseLength;
@@ -509,7 +510,6 @@ public class ClawController : MonoBehaviour
             StartCoroutine(GrabSequence());
         }
 
-        ApplyArmPosition();
     }
 
     // El carro empuja peluches, asi que su movimiento pertenece al paso de
@@ -517,6 +517,12 @@ public class ClawController : MonoBehaviour
     void FixedUpdate()
     {
         if (isControllable && !isBusy) HandleMovement();
+
+        // El brazo se coloca aqui y no en Update. Lleva colgando los dedos por
+        // articulaciones, y una articulacion pertenece al paso de fisica: si el
+        // ancla se mueve al ritmo del dibujo, el solver ve saltos que no
+        // corresponden a ninguna velocidad y responde a lo loco.
+        ApplyArmPosition();
     }
 
     void ApplyArmPosition()
@@ -538,11 +544,8 @@ public class ClawController : MonoBehaviour
         }
         else
         {
-            clawArm.localPosition = armBaseLocalPos;
-            clawArm.localRotation = Quaternion.identity;
+            ColocarBrazo(armBaseLocalPos, Quaternion.identity);
         }
-
-        Physics.SyncTransforms();
     }
 
     static bool IsFinite(float value)
@@ -569,10 +572,15 @@ public class ClawController : MonoBehaviour
         if (soporte == null)
         {
             soporte = anfitrion.gameObject.AddComponent<Rigidbody>();
-            soporte.isKinematic = true;
-            soporte.useGravity = false;
-            soporte.interpolation = RigidbodyInterpolation.Interpolate;
         }
+
+        soporte.isKinematic = true;
+        soporte.useGravity = false;
+        soporte.interpolation = RigidbodyInterpolation.Interpolate;
+
+        // Un cinematico dormido deja de avisar a las articulaciones que cuelgan
+        // de el, y los dedos se quedan tiesos en el aire.
+        soporte.sleepThreshold = 0f;
 
         // Los dedos SALEN de debajo del brazo.
         //
@@ -594,6 +602,7 @@ public class ClawController : MonoBehaviour
         if (fingerMotors == null) fingerMotors = GetComponent<ClawFingerMotors>();
         if (fingerMotors == null) fingerMotors = gameObject.AddComponent<ClawFingerMotors>();
 
+        armRb = soporte;
         fingerMotors.soporte = soporte;
         fingerMotors.fingers = fingers;
         fingerMotors.ejes = fingerRotationAxis;
@@ -676,18 +685,43 @@ public class ClawController : MonoBehaviour
 
         Quaternion swingRotation = Quaternion.Euler(tiltX, 0f, tiltZ);
 
+        Vector3 destino = armBaseLocalPos;
+
         if (swingAnchor != null)
         {
             Vector3 anchorLocalPos = swingAnchor.localPosition;
-            Vector3 offset = armBaseLocalPos - anchorLocalPos;
-            clawArm.localPosition = anchorLocalPos + swingRotation * offset;
-        }
-        else
-        {
-            clawArm.localPosition = armBaseLocalPos;
+            destino = anchorLocalPos + swingRotation * (armBaseLocalPos - anchorLocalPos);
         }
 
-        clawArm.localRotation = swingRotation;
+        ColocarBrazo(destino, swingRotation);
+    }
+
+    // Coloca el brazo. Si tiene cuerpo cinematico, se le PIDE el movimiento en
+    // vez de escribirle el transform.
+    //
+    // La diferencia es la que hacia que los dedos fuesen cada uno por su lado.
+    // Escribir el transform y llamar a SyncTransforms TELETRANSPORTA el cuerpo:
+    // las bisagras de los dedos ven su restriccion rota de golpe, sin ninguna
+    // velocidad que lo explique, y el solver responde con un impulso enorme
+    // para recolocarlos. De ahi los dedos disparados y los peluches empujados a
+    // traves del suelo.
+    //
+    // MovePosition mueve CON velocidad, que es justo lo que una articulacion
+    // sabe seguir.
+    void ColocarBrazo(Vector3 localPos, Quaternion localRot)
+    {
+        if (armRb != null && armRb.isKinematic)
+        {
+            Transform padre = clawArm.parent;
+
+            armRb.MovePosition(padre != null ? padre.TransformPoint(localPos) : localPos);
+            armRb.MoveRotation(padre != null ? padre.rotation * localRot : localRot);
+            return;
+        }
+
+        clawArm.localPosition = localPos;
+        clawArm.localRotation = localRot;
+        Physics.SyncTransforms();
     }
 
     // El carro pasa a ser un cuerpo cinematico. Cinematico y no dinamico porque

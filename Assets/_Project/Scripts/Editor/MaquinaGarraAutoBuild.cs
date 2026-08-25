@@ -52,9 +52,22 @@ public class MaquinaGarraAutoBuild : AssetPostprocessor
         // el boton la primera vez.
         if (!File.Exists(RUTA_PREFAB)) return;
 
-        if (File.GetLastWriteTimeUtc(RUTA_FBX) <= File.GetLastWriteTimeUtc(RUTA_PREFAB)) return;
+        // El prefab depende de DOS cosas: del modelo y del propio constructor.
+        // Comparar solo con el FBX dejaba fuera los cambios de ajustes, que no
+        // descolocan piezas pero si dejan valores viejos dentro sin avisar.
+        const string RUTA_BUILDER = "Assets/_Project/Scripts/Editor/MaquinaGarraBuilder.cs";
 
-        UnityEngine.Debug.Log("[Maquina] El prefab es mas viejo que el modelo. "
+        System.DateTime fuente = File.GetLastWriteTimeUtc(RUTA_FBX);
+
+        if (File.Exists(RUTA_BUILDER))
+        {
+            System.DateTime b = File.GetLastWriteTimeUtc(RUTA_BUILDER);
+            if (b > fuente) fuente = b;
+        }
+
+        if (fuente <= File.GetLastWriteTimeUtc(RUTA_PREFAB)) return;
+
+        UnityEngine.Debug.Log("[Maquina] El prefab es mas viejo que el modelo o que el constructor. "
                               + "Lo rehago para que no queden piezas descolocadas.");
         MaquinaGarraBuilder.Construir();
     }

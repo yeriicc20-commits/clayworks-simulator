@@ -372,9 +372,12 @@ public static class MaquinaGarraBuilder
         claw.swingTiltAmount = 30f;
         claw.swingMaxTiltAngle = 34f;
 
-        // El escaparate es mas alto, asi que la bajada es mas larga. Sin subir
-        // la velocidad la garra tardaria una eternidad en llegar.
-        claw.armMoveSpeed = 0.6f;
+        // Despacio. Una garra de verdad baja con calma, y ademas es lo que le
+        // da al jugador tiempo de ver que va a pasar. A 0,6 m/s parecia un
+        // ascensor averiado.
+        claw.armMoveSpeed = 0.32f;
+        claw.armAcceleration = 1.2f;
+        claw.armDeceleration = 2f;
         claw.insideGripHeightOffset = 0.08f;
         claw.obstacleCheckRadius = 0.096f;
         claw.forceNewtonsPerUnit = 1f;
