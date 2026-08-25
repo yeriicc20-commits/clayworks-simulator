@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 // Monta los prefabs de peluche a partir de sus FBX.
 //
@@ -29,6 +31,9 @@ public static class PelucheBuilder
         // Piezas que cuelgan y se balancean solas. Vacio si no tiene.
         public string[] partesBlandas;
         public Dictionary<string, Color> colores;
+
+        // Como se llama en la tienda. Vacio = no se vende.
+        public string tienda;
     }
 
     static readonly Peluche[] TODOS =
@@ -39,6 +44,7 @@ public static class PelucheBuilder
             fbx = "Assets/_Project/Models/Panxeta.fbx",
             peso = PlushItem.WeightCategory.Medio,
             partesBlandas = new[] { "Oreja_Izq", "Oreja_Der" },
+            tienda = "Panxeta",
             colores = new Dictionary<string, Color>
             {
                 // Los mismos valores que en Blender. Se repiten aqui a
@@ -147,6 +153,8 @@ public static class PelucheBuilder
         string ruta = CARPETA_PREFAB + "/" + p.nombre + ".prefab";
         GameObject guardado = PrefabUtility.SaveAsPrefabAsset(raiz, ruta);
 
+        Reenlazar(p, guardado);
+
         Bounds caja = Envolvente(raiz);
         Object.DestroyImmediate(raiz);
 
@@ -161,6 +169,52 @@ public static class PelucheBuilder
             p.partesBlandas == null ? 0 : p.partesBlandas.Length));
 
         Selection.activeObject = guardado;
+    }
+
+    // Vuelve a colgar el peluche de la tienda si se ha quedado suelto.
+    //
+    // El prefab se regenera ENTERO cada vez que cambia el modelo, y la escena lo
+    // referencia por el fileID de su raiz. Hasta ahora ese fileID ha aguantado
+    // las regeneraciones, asi que la referencia sobrevive, pero eso lo decide
+    // Unity y no nosotros.
+    //
+    // Y si algun dia no aguanta, no salta ningun error: la ficha se sigue
+    // pintando en la tienda, con su nombre y su precio, solo que al comprarla no
+    // aparece ningun peluche. Un fallo que no avisa y que ademas parece un
+    // problema del carrito. Mejor comprobarlo aqui, que es donde se sabe cual es
+    // el prefab bueno.
+    static void Reenlazar(Peluche p, GameObject prefab)
+    {
+        if (string.IsNullOrEmpty(p.tienda) || prefab == null) return;
+
+        for (int i = 0; i < SceneManager.sceneCount; i++)
+        {
+            Scene escena = SceneManager.GetSceneAt(i);
+            if (!escena.isLoaded) continue;
+
+            foreach (GameObject raiz in escena.GetRootGameObjects())
+            {
+                foreach (ShopManager tienda in raiz.GetComponentsInChildren<ShopManager>(true))
+                {
+                    if (tienda.toyItems == null) continue;
+
+                    foreach (ToyShopItem item in tienda.toyItems)
+                    {
+                        if (item == null || item.itemName != p.tienda) continue;
+                        if (item.toyPrefab == prefab) continue;
+
+                        item.toyPrefab = prefab;
+
+                        EditorUtility.SetDirty(tienda);
+                        EditorSceneManager.MarkSceneDirty(escena);
+
+                        Debug.Log("[Peluche] " + p.tienda + " se habia quedado sin "
+                                  + "prefab en la tienda de " + escena.name
+                                  + "; lo he vuelto a enlazar. Guarda la escena.");
+                    }
+                }
+            }
+        }
     }
 
     static void Blandas(GameObject raiz, string[] nombres)

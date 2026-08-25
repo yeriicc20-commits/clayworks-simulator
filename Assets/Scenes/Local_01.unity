@@ -2028,6 +2028,12 @@ MonoBehaviour:
     toyPrefab: {fileID: 9400000000000001, guid: b621a272e406f0f58151521b62918336, type: 3}
     boxToyCount: 10
     boxPrefab: {fileID: 0}
+  - itemName: Panxeta
+    price: 60
+    icon: {fileID: 0}
+    toyPrefab: {fileID: 5226954424426994869, guid: 32d02ab54b5886f40a2e787e19e6824f, type: 3}
+    boxToyCount: 10
+    boxPrefab: {fileID: 0}
   spawnPoint: {fileID: 9600011417368}
   toyBoxPrefab: {fileID: 973004227211, guid: e81af81be9072b43b664300a5aebe02e, type: 3}
   itemsContainer: {fileID: 2124879219}
