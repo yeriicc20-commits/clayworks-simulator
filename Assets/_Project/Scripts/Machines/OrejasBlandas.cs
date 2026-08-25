@@ -205,6 +205,19 @@ public class OrejasBlandas : MonoBehaviour
             direccion[i] = Vector3.RotateTowards(colgado[i], direccion[i].normalized,
                                                  tope * 1.25f, 0f);
 
+            // Y lo de hacia dentro, tambien sobre el resultado. Cortarlo solo en
+            // el objetivo no basta: el muelle lleva inercia y se pasa. Con la
+            // oreja gorda habia 5 grados de margen antes de tocar el craneo y no
+            // se notaba, pero la oreja cilindrica va tan pegada que el margen es
+            // CERO: se mete en cuanto empieza a girar hacia dentro.
+            float mete = Vector3.Dot(direccion[i], fuera[i]);
+
+            if (mete < 0f)
+            {
+                direccion[i] = (direccion[i] - fuera[i] * mete).normalized;
+                velocidad[i] -= fuera[i] * Vector3.Dot(velocidad[i], fuera[i]);
+            }
+
             orejas[i].localRotation =
                 Quaternion.FromToRotation(colgado[i], direccion[i]) * reposo[i];
         }

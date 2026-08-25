@@ -315,35 +315,38 @@ def radio_perfil(perfil, z, centro_z):
     return 0.0
 
 
-def oreja(nombre, sx, mat, ancho=0.042, grosor=0.020):
-    """Oreja larga y caida, apoyada por fuera de la cabeza.
+def oreja(nombre, sx, mat, ancho=0.028, grosor=0.024):
+    """Oreja corta y casi cilindrica, apoyada por fuera de la cabeza.
 
-    Dos cosas la estropeaban.
+    Ancho y grueso casi iguales a proposito: con 42 por 20 la seccion era
+    una lenteja y la oreja parecia una hoja: de frente se veia ancha y de
+    perfil desaparecia. A 28 por 24 el corte es casi redondo y se ve igual
+    desde cualquier lado.
 
-    La seccion era CONSTANTE y salia un ladrillo cortado en seco, como una
-    patilla pegada. Una oreja de trapo no es un prisma: nace estrecha en la
-    costura, se abre en el medio y se cierra en punta roma. Eso es
-    contorno().
+    Y contorno() ya no hace forma de hoja. Se mantiene del mismo grueso casi
+    todo el recorrido y solo se redondea en las dos puntas, que es lo que
+    hace un tubo con los extremos cerrados.
 
-    Y el camino seguia el radio de la cabeza TODO el recorrido. Pasado el
-    ecuador la cabeza se estrecha, asi que la oreja se estrechaba con ella y
-    la punta acababa a 13 mm del eje, o sea metida detras del cuerpo. Una
-    oreja caida se apoya mientras hay cabeza y a partir de ahi CUELGA: por
-    eso la x no baja nunca, se queda en el maximo que alcanzo.
-
-    De paso eso garantiza que no la atraviesa. Por encima del ecuador va
-    justo pegada al perfil, y por debajo se queda mas afuera que el punto
-    mas ancho de la cabeza.
+    El camino se apoya a cada altura JUSTO por fuera del radio de la cabeza
+    mientras hay cabeza, y a partir de ahi cuelga recto: por eso la x no baja
+    nunca, se queda en el maximo que alcanzo. Si siguiera el perfil, pasado
+    el ecuador se estrecharia con el y la punta acabaria metida detras del
+    cuerpo. Como la seccion solo puede encoger, tampoco la atraviesa.
     """
     def contorno(t):
-        if t <= 0.35:
-            return 0.55 + 0.45 * math.sin(t / 0.35 * math.pi * 0.5)
+        if t < 0.08:
+            u = t / 0.08
+            return 0.72 + 0.28 * math.sqrt(max(0.0, 1.0 - (1.0 - u) ** 2))
 
-        return 0.12 + 0.88 * math.cos((t - 0.35) / 0.65 * math.pi * 0.5)
+        if t > 0.88:
+            u = (t - 0.88) / 0.12
+            return 0.10 + 0.90 * math.sqrt(max(0.0, 1.0 - u * u))
+
+        return 1.0
 
     arranque_z = 0.234
-    largo = 0.196
-    pasos = 26
+    largo = 0.148
+    pasos = 22
 
     camino = []
     base = None
@@ -358,7 +361,7 @@ def oreja(nombre, sx, mat, ancho=0.042, grosor=0.020):
 
         # Cae un poco hacia atras, que es por donde nace la oreja, y asi
         # ademas la punta no le pega a la mano.
-        p = Vector((sx * x, 0.002 + t * 0.020, z))
+        p = Vector((sx * x, 0.004 + t * 0.020, z))
 
         if base is None:
             base = p
