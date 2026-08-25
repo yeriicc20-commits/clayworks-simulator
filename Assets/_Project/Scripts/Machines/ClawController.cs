@@ -104,6 +104,11 @@ public class ClawController : MonoBehaviour
     [HideInInspector] public float currentGripForceRating;
 
     [Header("Resbalon (se cae el peluche agarrado)")]
+    [Tooltip("Cuanto tiene que llevar el peluche sin aparecer en la garra para "
+             + "darlo por caido. No puede ser un fotograma: la comprobacion es "
+             + "un solapamiento y parpadea con el balanceo.")]
+    public float tiempoParaDarPorPerdido = 0.15f;
+
     public float slipExtraCloseAngle = 15f;
     public float slipCloseSpeed = 40f;
 
@@ -1353,11 +1358,27 @@ public class ClawController : MonoBehaviour
         // Se vigila hasta que deja de estar. Con rozamiento puro esto puede
         // pasar en cualquier momento: al subir, al desplazarse o justo encima
         // del agujero, que es lo que se pidio.
+        //
+        // Pero no con un solo fotograma. La comprobacion es un solapamiento con
+        // una esfera, y eso parpadea: el peluche se balancea mientras viaja y
+        // puede asomar fuera de la esfera un fotograma suelto sin haberse caido.
+        // Dandolo por perdido a la primera, el peluche seguia su viaje dentro de
+        // la garra y aun asi la partida quedaba marcada como fallada.
+        float ausente = 0f;
+
         while (true)
         {
             if (ConMotores)
             {
-                if (PelucheEnLaGarra() == null) break;
+                if (PelucheEnLaGarra() == null)
+                {
+                    ausente += Time.deltaTime;
+                    if (ausente >= tiempoParaDarPorPerdido) break;
+                }
+                else
+                {
+                    ausente = 0f;
+                }
             }
             else
             {
@@ -1907,6 +1928,24 @@ public class ClawController : MonoBehaviour
     // Que peluche lleva la garra ahora mismo, sea con joints o con FixedJoint.
     PlushItem GetHeldPlush()
     {
+        // Con motores no hay ninguna union que consultar: lo que sujeta al
+        // peluche es el rozamiento. Asi que se MIRA si hay uno en la garra.
+        //
+        // Sin esto, las tres vias de abajo son todas de joints y con motores
+        // dan null siempre, asi que no habia premio nunca: al conseguir el
+        // peluche sonaba el de haber perdido. Es el mismo fallo que ya paso con
+        // la deteccion del agarre, en otro sitio.
+        if (ConMotores)
+        {
+            Rigidbody enGarra = PelucheEnLaGarra();
+
+            if (enGarra != null)
+            {
+                PlushItem item = enGarra.GetComponent<PlushItem>();
+                if (item != null) return item;
+            }
+        }
+
         if (activeFingerJoints != null)
         {
             foreach (ConfigurableJoint joint in activeFingerJoints)
