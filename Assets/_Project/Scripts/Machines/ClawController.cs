@@ -1325,21 +1325,27 @@ public class ClawController : MonoBehaviour
 
         intendedTargetRb = hit.collider.attachedRigidbody;
 
+        // Baja hasta el fondo: el peluche entra entero entre los brazos y topa
+        // con la carcasa de la garra. Como la bisagra esta justo en la base de
+        // la carcasa, "que el peluche toque la cabeza" es literalmente bajar
+        // hasta que la BISAGRA llegue a la cima del peluche.
+        //
+        // Aqui esta el arreglo de "se queda a mucha distancia": antes se paraba
+        // dejando las puntas a media altura del peluche, o sea con la bisagra
+        // todavia un dedo entero por encima de el.
+        //
+        // No se baja mas alla de esa cima aunque quede recorrido. Si se bajase,
+        // la carcasa, que va por transform y no cede, empujaria el peluche
+        // contra el suelo hasta atravesarlo.
         float cima = hit.collider.bounds.max.y;
-        float altoPeluche = hit.collider.bounds.size.y;
+        float hingeY = hingePoint.position.y;
 
-        // Cuanto se hunde. Medio peluche, con tope en dos tercios del dedo: si
-        // se hunde menos, los brazos se cierran por encima; si se hunde mas, el
-        // peluche le pasa de la bisagra y ya no hay nada que abrazar.
-        float hundimiento = Mathf.Min(altoPeluche * 0.5f, alcance * 0.66f);
-
-        float objetivo = Mathf.Max(cima - hundimiento, sueloY + 0.005f);
-        float parada = Mathf.Max(armDownY, armBaseLocalPos.y - (puntasY - objetivo));
+        float parada = Mathf.Max(armDownY, armBaseLocalPos.y - (hingeY - cima));
 
         Debug.Log(string.Format(
-            "[Garra] Bajada sobre {0}: cima={1:F3} alto={2:F3} hundimiento={3:F3} "
-            + "puntas acaban en {4:F3} (suelo {5:F3})",
-            hit.collider.name, cima, altoPeluche, hundimiento, objetivo, sueloY));
+            "[Garra] Bajada sobre {0}: cima={1:F3}, bisagra baja de {2:F3} a {3:F3} "
+            + "(tope {4:F3}, suelo {5:F3})",
+            hit.collider.name, cima, hingeY, cima, armDownY, sueloY));
 
         return parada;
     }

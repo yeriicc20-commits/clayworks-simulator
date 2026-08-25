@@ -40,6 +40,11 @@ public class ClawFingerMotors : MonoBehaviour
     [Tooltip("A que velocidad gira el motor mientras no encuentra resistencia.")]
     public float motorSpeed = 200f;
 
+    [Tooltip("Cuantos grados MAS del reposo puede abrirse un brazo al posarse "
+             + "sobre algo. Es lo que le permite ceder y resbalar alrededor de "
+             + "un peluche en vez de quedarse atrapado contra el.")]
+    public float openOvershoot = 14f;
+
     [Tooltip("Par del motor al ABRIR. Generoso: abrir siempre tiene que funcionar.")]
     public float openTorque = 4f;
 
@@ -131,10 +136,17 @@ public class ClawFingerMotors : MonoBehaviour
                      ? fingers[i].InverseTransformDirection(ejes[i]).normalized
                      : Vector3.right;
 
+            // El limite abierto se pasa unos grados del reposo a proposito.
+            //
+            // Al posarse sobre un monton, los brazos de una garra de verdad se
+            // abren un poco y resbalan alrededor de lo que tocan. Sin ese
+            // margen, el brazo no puede ceder: la carcasa sigue bajando porque
+            // va por transform y no cede, el dedo queda atrapado entre ella y el
+            // peluche, y quien acaba saliendo por donde no debe es el peluche.
             j.useLimits = true;
             JointLimits lim = j.limits;
-            lim.min = Mathf.Min(0f, closedAngle);
-            lim.max = Mathf.Max(0f, closedAngle);
+            lim.min = Mathf.Min(-openOvershoot, closedAngle);
+            lim.max = Mathf.Max(openOvershoot, closedAngle);
             lim.bounciness = 0f;
             lim.contactDistance = 1f;
             j.limits = lim;
