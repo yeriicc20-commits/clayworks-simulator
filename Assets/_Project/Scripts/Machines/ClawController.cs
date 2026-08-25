@@ -114,32 +114,39 @@ public class ClawController : MonoBehaviour
              + "encajado contra la cabeza sube con la garra abierta.")]
     [Range(0f, 0.8f)] public float cierreMinimoParaAgarrar = 0.25f;
 
-    [Header("Girar la garra")]
-    [Tooltip("Deja girar la garra sobre su eje mientras se juega y mientras "
-             + "baja.")]
+    [Header("Giro de la garra sobre su eje")]
+    [Tooltip("La garra se retuerce sola sobre el cable, hacia un lado y hacia "
+             + "el otro. No es un mando: es lo que hace una garra colgada.")]
     public bool permitirGiro = true;
 
-    public KeyCode giroIzquierda = KeyCode.U;
-    public KeyCode giroDerecha = KeyCode.O;
+    [Tooltip("Cuanto tira el cable de volver a su sitio. Bajo, porque un cable "
+             + "casi no resiste a la torsion: con 4,5 el vaiven completo dura "
+             + "unos tres segundos, que es lo que tarda uno de verdad.")]
+    public float rigidezGiro = 4.5f;
 
-    [Tooltip("Grados por segundo.")]
-    public float velocidadGiro = 95f;
+    [Tooltip("Cuanto se le va el vaiven. Poco a proposito: tiene que seguir "
+             + "moviendose durante toda la bajada, no pararse a la primera.")]
+    public float amortiguacionGiro = 0.6f;
 
-    [Tooltip("Lo maximo que puede girar hacia cada lado. No es infinito porque "
-             + "la garra cuelga de un cable: dar vueltas sin fin no lo hace "
-             + "ninguna maquina de verdad.")]
-    public float giroMaximo = 170f;
+    [Tooltip("Lo mas que llega a girar hacia cada lado, en grados.")]
+    public float giroMaximo = 55f;
 
-    [Tooltip("Lo que tarda en alcanzar el giro pedido. Sin esto arranca y para "
-             + "en seco, y una cabeza de acero colgando de un cable no hace eso.")]
-    public float suavizadoGiro = 7f;
+    [Tooltip("Cuanto la remueve mover el carro.")]
+    public float sensibilidadGiro = 22f;
 
-    private float giroPedido = 0f;
+    [Tooltip("El retorcido con el que arranca cada partida. Es lo que hace que "
+             + "no haya dos bajadas iguales.")]
+    public float giroInicial = 120f;
+
     private float giroActual = 0f;
+    private float velGiro = 0f;
 
-    // Verdadero mientras el brazo esta bajando. El giro sigue estando permitido
-    // aqui aunque isControllable ya sea falso: se pidio poder girarla al bajar,
-    // que es justo cuando dejas de tener el mando de los raies.
+    // Cuanto le afecta a esta maquina el movimiento de cada eje. Se sortea una
+    // vez por maquina y no por partida: es como esta montado su cable, y eso no
+    // cambia de una jugada a la siguiente.
+    private Vector2 sesgoGiro = Vector2.zero;
+    private Vector3 velCarroPrevia = Vector3.zero;
+
     private bool bajando = false;
 
     public float slipExtraCloseAngle = 15f;
@@ -408,6 +415,12 @@ public class ClawController : MonoBehaviour
     {
         isControllable = false;
 
+        // Como esta montado el cable de ESTA maquina. Se sortea una vez y se
+        // queda: si se sorteara por partida, la misma maquina se comportaria
+        // distinta cada vez y se notaria que es un numero al azar y no una
+        // caracteristica suya. Con varias en la sala, cada una gira a su manera.
+        sesgoGiro = Random.insideUnitCircle.normalized;
+
         if (audio3d == null) audio3d = GetComponent<ClawAudio>();
 
         // La cabeza solo necesita cuerpo propio si va a colgar de un cable
@@ -618,35 +631,6 @@ public class ClawController : MonoBehaviour
             StartCoroutine(GrabSequence());
         }
 
-        LeerGiro();
-    }
-
-    // El giro se lee en Update y se aplica en el paso de fisica, igual que todo
-    // lo demas que mueve el brazo.
-    void LeerGiro()
-    {
-        if (!permitirGiro) return;
-
-        // Si esta jugando un npc, el mando no es del jugador. Sin esto, estando
-        // cerca de una maquina ocupada se le podia girar la garra a un npc en
-        // plena bajada solo con rozar la tecla.
-        if (IsNPCTurn) return;
-
-        // Mientras se coloca la garra Y mientras baja. Despues no: girar con el
-        // peluche ya cogido lo escurriria, y eso no seria una habilidad, seria
-        // que el jugador no puede evitar tocar la tecla.
-        bool puede = (isControllable && !isBusy) || bajando;
-
-        if (!puede) return;
-
-        float lado = 0f;
-        if (Input.GetKey(giroDerecha)) lado += 1f;
-        if (Input.GetKey(giroIzquierda)) lado -= 1f;
-
-        if (Mathf.Abs(lado) < 0.01f) return;
-
-        giroPedido = Mathf.Clamp(giroPedido + lado * velocidadGiro * Time.deltaTime,
-                                 -giroMaximo, giroMaximo);
     }
 
     // El carro empuja peluches, asi que su movimiento pertenece al paso de
@@ -861,15 +845,7 @@ public class ClawController : MonoBehaviour
         tiltX = Mathf.Clamp(tiltX, -swingMaxTiltAngle * 2f, swingMaxTiltAngle * 2f);
         tiltZ = Mathf.Clamp(tiltZ, -swingMaxTiltAngle * 2f, swingMaxTiltAngle * 2f);
 
-        // El giro va POR DENTRO del balanceo, no por fuera: primero la garra
-        // gira sobre su propio eje y luego todo el conjunto se inclina. Al
-        // reves, el giro tumbaria el eje de inclinacion y la garra cabecearia
-        // hacia donde no toca.
-        //
-        // Y no entra en el calculo de la posicion de abajo a proposito: girar
-        // sobre el eje del cable no mueve la garra de sitio, solo la orienta.
-        giroActual = Mathf.Lerp(giroActual, giroPedido,
-                                1f - Mathf.Exp(-dt * suavizadoGiro));
+        ActualizarGiro(realVelocity, dt);
 
         Quaternion swingRotation = Quaternion.Euler(tiltX, 0f, tiltZ);
         Quaternion conGiro = swingRotation * Quaternion.Euler(0f, giroActual, 0f);
@@ -883,6 +859,63 @@ public class ClawController : MonoBehaviour
         }
 
         ColocarBrazo(destino, conGiro);
+    }
+
+    // La garra retorciendose sola sobre el cable.
+    //
+    // Es un pendulo de torsion: el cable tira de volver a su sitio, pero muy
+    // flojo, asi que la garra se va a un lado, vuelve, se pasa al otro y va
+    // muriendo poco a poco. El vaiven completo dura unos tres segundos, que es
+    // lo que tarda una de verdad.
+    //
+    // Lo que lo pone en marcha es un retorcido al empezar cada partida, distinto
+    // cada vez: por eso no hay dos bajadas iguales. Y mover el carro lo remueve,
+    // asi que colocar la garra deprisa la deja girando mas.
+    //
+    // Lo del sesgo merece una explicacion. Trasladar en linea recta algo colgado
+    // de un punto no lo retuerce: la torsion de verdad viene de que el cable
+    // tiene memoria, de que la cabeza no esta perfectamente centrada y del aire.
+    // Nada de eso compensa simularlo, asi que se acopla el movimiento del carro
+    // al giro con dos coeficientes sorteados por maquina. No es la fisica
+    // exacta; es el resultado que se ve, y vale mas decirlo que disimularlo.
+    void ActualizarGiro(Vector3 velocidadCarro, float dt)
+    {
+        if (!permitirGiro)
+        {
+            giroActual = 0f;
+            return;
+        }
+
+        Vector3 aceleracion = (velocidadCarro - velCarroPrevia) / dt;
+        velCarroPrevia = velocidadCarro;
+
+        float remueve = (aceleracion.x * sesgoGiro.x + aceleracion.z * sesgoGiro.y)
+                        * sensibilidadGiro;
+
+        // Un empujon suelto no puede lanzarla dando vueltas.
+        remueve = Mathf.Clamp(remueve, -giroMaximo, giroMaximo);
+
+        float fuerza = -rigidezGiro * giroActual - amortiguacionGiro * velGiro + remueve;
+
+        velGiro += fuerza * dt;
+        giroActual += velGiro * dt;
+
+        // Red de seguridad, igual que en el balanceo: un NaN en un Quaternion no
+        // se recupera solo.
+        if (!IsFinite(giroActual) || !IsFinite(velGiro))
+        {
+            giroActual = 0f;
+            velGiro = 0f;
+        }
+
+        // El tope frena de verdad en vez de solo recortar. Recortando a secas la
+        // velocidad se queda apuntando hacia fuera, y la garra se pega al tope
+        // temblando en lugar de rebotar.
+        if (Mathf.Abs(giroActual) > giroMaximo)
+        {
+            giroActual = Mathf.Clamp(giroActual, -giroMaximo, giroMaximo);
+            velGiro *= -0.25f;
+        }
     }
 
     // Coloca el brazo. Si tiene cuerpo cinematico, se le PIDE el movimiento en
@@ -1205,6 +1238,11 @@ public class ClawController : MonoBehaviour
             audio3d.Alarma(true);
         }
 
+        // El retorcido de salida. Se le da a la VELOCIDAD y no al angulo: asi la
+        // garra arranca recta y se va girando, en vez de aparecer ya torcida.
+        float empujon = Random.Range(giroInicial * 0.45f, giroInicial);
+        velGiro += Random.value < 0.5f ? -empujon : empujon;
+
         bajando = true;
         yield return MoveArmDownUntilPlushContact();
         bajando = false;
@@ -1397,9 +1435,10 @@ public class ClawController : MonoBehaviour
 
         if (audio3d != null) audio3d.MotorCable(false);
 
-        // El giro vuelve a cero para la siguiente partida. Si se quedara donde
-        // se dejo, la garra empezaria torcida sin que nadie la hubiera tocado.
-        giroPedido = 0f;
+        // El giro se apaga para la siguiente partida. Si se quedara girando, la
+        // siguiente empezaria torcida sin que nada la hubiera movido.
+        giroActual = 0f;
+        velGiro = 0f;
 
         isBusy = false;
         isControllable = false;

@@ -597,13 +597,16 @@ public static class MaquinaGarraBuilder
         audio3d.distanciaMaxima = 11f;
         audio3d.distanciaContinua = 6f;
 
-        // Girar la garra sobre su eje mientras se juega y mientras baja.
+        // La garra retorciendose sola sobre el cable. Rigidez baja porque un
+        // cable casi no resiste a la torsion: con 4,5 el vaiven completo dura
+        // unos tres segundos. Y poca amortiguacion, que tiene que seguir
+        // moviendose durante toda la bajada.
         claw.permitirGiro = true;
-        claw.giroIzquierda = KeyCode.U;
-        claw.giroDerecha = KeyCode.O;
-        claw.velocidadGiro = 95f;
-        claw.giroMaximo = 170f;
-        claw.suavizadoGiro = 7f;
+        claw.rigidezGiro = 4.5f;
+        claw.amortiguacionGiro = 0.6f;
+        claw.giroMaximo = 55f;
+        claw.sensibilidadGiro = 22f;
+        claw.giroInicial = 120f;
         audio3d.musica      = Sonido("Musica_Arcade");
 
         claw.audio3d = audio3d;
