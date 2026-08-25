@@ -3768,6 +3768,8 @@ MonoBehaviour:
   torqueMax: 0.45
   generousChance: 0.12
   ajuste: 0.35
+  jugadasParaGarantizar: 10
+  jugadasSinPremio: 0
   gripMaterial: {fileID: 13400000, guid: 6dcc271f5395afcc2fd990674549163b, type: 2}
 --- !u!114 &9159380809835664535
 MonoBehaviour:
@@ -3841,6 +3843,7 @@ MonoBehaviour:
   useMotorFingers: 1
   grabDepth: 0.85
   fingerMotors: {fileID: 3621684585994608460}
+  audio3d: {fileID: 0}
   useRealisticGripPhysics: 1
   gripForcePlayerMin: 1
   gripForcePlayerMax: 10

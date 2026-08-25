@@ -84,6 +84,9 @@ public class ClawMachineInteraction : MonoBehaviour
 
         if (paid)
         {
+            ClawAudio audio3d = clawController.GetComponent<ClawAudio>();
+            if (audio3d != null) audio3d.Moneda();
+
             clawController.isControllable = true;
             InteractionUI.Instance.HidePrompt();
         }

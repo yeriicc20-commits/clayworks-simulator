@@ -31,6 +31,13 @@ public class PlushDropZone : MonoBehaviour
 
         plush.collected = true;
 
+        // El golpe del peluche contra la chapa del cajon.
+        if (clawController != null)
+        {
+            ClawAudio audio3d = clawController.GetComponent<ClawAudio>();
+            if (audio3d != null) audio3d.PelucheCae();
+        }
+
         Transform carrySpot = clawController != null ? clawController.activeCarrySpot : null;
 
         if (carrySpot == null || !rewardOnlyForPlayer)

@@ -481,6 +481,22 @@ public static class MaquinaGarraBuilder
                              + "mucho par que tenga el motor.");
         }
 
+        // ------------------------------------------------------------ sonido
+        ClawAudio audio3d = raiz.AddComponent<ClawAudio>();
+
+        audio3d.moneda      = Sonido("Moneda");
+        audio3d.boton       = Sonido("Boton");
+        audio3d.garraCierra = Sonido("Garra_Cierra");
+        audio3d.garraAbre   = Sonido("Garra_Abre");
+        audio3d.premio      = Sonido("Premio");
+        audio3d.fallo       = Sonido("Fallo");
+        audio3d.pelucheCae  = Sonido("Peluche_Cae");
+        audio3d.tope        = Sonido("Tope");
+        audio3d.motorCarro  = Sonido("Motor_Carro");
+        audio3d.motorCable  = Sonido("Motor_Cable");
+
+        claw.audio3d = audio3d;
+
         MachinePricing precio = raiz.AddComponent<MachinePricing>();
         precio.price = 5f;
         precio.recommendedPrice = 5f;
@@ -594,6 +610,16 @@ public static class MaquinaGarraBuilder
     {
         v.y = 0f;
         return v.magnitude;
+    }
+
+    static AudioClip Sonido(string nombre)
+    {
+        string ruta = "Assets/_Project/Audio/" + nombre + ".wav";
+        AudioClip clip = AssetDatabase.LoadAssetAtPath<AudioClip>(ruta);
+
+        if (clip == null) Debug.LogWarning("[Maquina] Falta el sonido " + ruta);
+
+        return clip;
     }
 
     // ------------------------------------------------------------- ayudantes

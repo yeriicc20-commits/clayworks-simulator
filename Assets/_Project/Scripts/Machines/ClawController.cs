@@ -87,6 +87,7 @@ public class ClawController : MonoBehaviour
     [Range(0.15f, 1f)] public float grabDepth = 0.6f;
 
     [HideInInspector] public ClawFingerMotors fingerMotors;
+    [HideInInspector] public ClawAudio audio3d;
 
     [Header("Fisica de agarre realista")]
     public bool useRealisticGripPhysics = true;
@@ -358,6 +359,8 @@ public class ClawController : MonoBehaviour
     void Start()
     {
         isControllable = false;
+
+        if (audio3d == null) audio3d = GetComponent<ClawAudio>();
 
         // La cabeza solo necesita cuerpo propio si va a colgar de un cable
         // fisico. Si no, es una pieza mas del brazo y su collider debe formar
@@ -1032,6 +1035,14 @@ public class ClawController : MonoBehaviour
             return;
         }
 
+        // El motor suena mientras algo se mueve de verdad, no mientras se
+        // pulsa la tecla: si el carro esta contra el tope, no hay motor que oir.
+        if (audio3d != null)
+        {
+            bool moviendo = Mathf.Abs(currentVelX) > 0.01f || Mathf.Abs(currentVelZ) > 0.01f;
+            audio3d.MotorCarro(moviendo);
+        }
+
         // El rail largo es decorado: lo unico que toca peluches es el carro.
         railX.localPosition = posX;
 
@@ -1083,6 +1094,8 @@ public class ClawController : MonoBehaviour
 
         if (useRealisticGripPhysics)
         {
+            if (audio3d != null) audio3d.Cierra();
+
             Coroutine liveGripRoutine = StartCoroutine(CloseFingersLiveGrip(fingerCloseAngle));
 
             yield return new WaitForSeconds(closeBeforeLiftDelay);
@@ -1229,6 +1242,8 @@ public class ClawController : MonoBehaviour
         // Quien venga en la garra al llegar aqui es el premio, caiga donde caiga.
         PlushItem prize = GetHeldPlush();
 
+        if (audio3d != null) audio3d.Abre();
+
         if (useRealisticGripPhysics)
         {
             ReleaseAllFingerJoints();
@@ -1246,11 +1261,16 @@ public class ClawController : MonoBehaviour
             // Es el intervalo de pago de una recreativa, y es lo que evita que
             // una racha mala se alargue indefinidamente.
             if (fingerMotors != null) fingerMotors.Premiado();
+            if (audio3d != null) audio3d.Premio();
 
             StartCoroutine(DeliverPrize(prize));
         }
 
+        if (prize == null && audio3d != null) audio3d.Fallo();
+
         yield return MoveRailsTo(new Vector3(startPosX, railZ.localPosition.y, startPosZ), prizeTravelSpeed);
+
+        if (audio3d != null) audio3d.MotorCable(false);
 
         isBusy = false;
         isControllable = false;
@@ -1547,6 +1567,8 @@ public class ClawController : MonoBehaviour
         // altura u otra segun el momento en que se hiciese la comprobacion.
         float parada = AlturaDeParada();
 
+        if (audio3d != null) audio3d.MotorCable(true);
+
         while (pos.y > parada)
         {
             float remaining = pos.y - parada;
@@ -1568,6 +1590,8 @@ public class ClawController : MonoBehaviour
 
             yield return null;
         }
+
+        if (audio3d != null) audio3d.MotorCable(false);
 
         Debug.Log(string.Format("[Garra] Bajada terminada en {0:F3} (tope {1:F3})",
                                 armBaseLocalPos.y, armDownY));
@@ -1598,6 +1622,8 @@ public class ClawController : MonoBehaviour
 
     IEnumerator MoveArmTo(float targetY)
     {
+        if (audio3d != null) audio3d.MotorCable(true);
+
         Vector3 pos = armBaseLocalPos;
         float safetyTimer = 0f;
         float currentVelY = 0f;
