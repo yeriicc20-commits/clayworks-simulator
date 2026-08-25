@@ -109,6 +109,11 @@ public class ClawController : MonoBehaviour
              + "un solapamiento y parpadea con el balanceo.")]
     public float tiempoParaDarPorPerdido = 0.15f;
 
+    [Tooltip("Que fraccion del cierre total tienen que haber recorrido los "
+             + "brazos para que cuente como agarre. Con esto en cero, un peluche "
+             + "encajado contra la cabeza sube con la garra abierta.")]
+    [Range(0f, 0.8f)] public float cierreMinimoParaAgarrar = 0.25f;
+
     public float slipExtraCloseAngle = 15f;
     public float slipCloseSpeed = 40f;
 
@@ -1572,6 +1577,22 @@ public class ClawController : MonoBehaviour
     Rigidbody PelucheEnLaGarra()
     {
         if (hingePoint == null) return null;
+
+        // Si los brazos no han llegado a cerrarse, no hay agarre por mucho que
+        // haya un peluche ahi metido.
+        //
+        // Con el par alto los dedos aprietan tanto estando casi abiertos que el
+        // peluche se queda acunado contra el cono de la cabeza y sube igual: se
+        // veia la garra abierta de par en par con el peluche pegado debajo. Eso
+        // no es coger nada, es que se ha quedado encajado.
+        //
+        // El limite va en fraccion del cierre total, no en grados sueltos, para
+        // que siga valiendo si algun dia cambia la geometria de la garra.
+        if (ConMotores && fingerMotors != null && fingerMotors.Listo)
+        {
+            float falta = Mathf.Abs(fingerCloseAngle) * cierreMinimoParaAgarrar;
+            if (fingerMotors.CierreMinimo() < falta) return null;
+        }
 
         float radio = radioReposo * 1.2f;
 

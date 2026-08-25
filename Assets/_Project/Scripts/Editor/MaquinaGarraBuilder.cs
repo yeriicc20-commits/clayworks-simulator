@@ -530,6 +530,20 @@ public static class MaquinaGarraBuilder
         // acabar de cerrar. Con 0,7 sobra un 39%.
         claw.closeBeforeLiftDelay = 0.7f;
 
+        // Cuanto tienen que haberse cerrado los brazos para que cuente.
+        //
+        // A un cuarto del cierre la boca mide 171 mm, asi que se lleva cualquier
+        // cosa de menos de eso: la cabeza de Panxeta son 146 y le sobran 25. Lo
+        // que deja fuera es el peluche que solo se ha quedado encajado, con la
+        // garra practicamente abierta, que ahi la boca ronda los 210.
+        //
+        //   cierre    grados    boca
+        //      0%       0,0    226 mm
+        //     25%       9,1    171 mm
+        //     33%      12,0    152 mm
+        //     50%      18,2    113 mm
+        claw.cierreMinimoParaAgarrar = 0.25f;
+
         claw.fingerMotors = motores;
 
         if (agarre == null)

@@ -316,18 +316,24 @@ public class ClawFingerMotors : MonoBehaviour
     // Se mira el peor y no la media a proposito: si un dedo se queda a medias
     // porque el peluche esta descentrado, la garra agarra mal aunque los otros
     // dos hayan cerrado del todo.
+    //
+    // Va con signo, en el sentido de cierre, y no en valor absoluto. En valor
+    // absoluto los 14 grados que los brazos se abren DE MAS al posarse contaban
+    // como catorce grados de cierre, o sea que una garra abierta de par en par
+    // puntuaba mejor que una a medio cerrar.
     public float CierreMinimo()
     {
-        if (joints == null) return 0f;
+        if (joints == null || joints.Length == 0) return 0f;
 
+        float sentido = Mathf.Sign(closedAngle);
         float peor = Mathf.Abs(closedAngle);
 
         foreach (HingeJoint j in joints)
         {
             if (j == null) continue;
-            peor = Mathf.Min(peor, Mathf.Abs(j.angle));
+            peor = Mathf.Min(peor, j.angle * sentido);
         }
 
-        return peor;
+        return Mathf.Max(0f, peor);
     }
 }
