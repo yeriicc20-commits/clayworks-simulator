@@ -1385,8 +1385,22 @@ public class ClawController : MonoBehaviour
 
         intendedTargetRb = hit.collider.attachedRigidbody;
 
-        float cima = hit.collider.bounds.max.y;
-        float altoPeluche = hit.collider.bounds.size.y;
+        // El peluche ENTERO, no solo la pieza que ha tocado el barrido.
+        //
+        // Un peluche lleva varios colliders: cabeza y cuerpo. Si el barrido daba
+        // en la cabeza, la bajada se calculaba como si el peluche fuese solo
+        // esa cabeza, y la garra se paraba con las puntas justo debajo de ella.
+        // Pero debajo de la cabeza esta el cuerpo, asi que los dedos no tenian
+        // por donde cerrarse: se quedaban apoyados en los hombros apretando
+        // hacia dentro, y una cabeza redonda apretada por arriba sale disparada
+        // por mucha fuerza que le pongas.
+        //
+        // Midiendo el bulto entero, la garra baja alrededor de todo el muneco y
+        // los ganchos llegan por debajo de su centro, que es de donde se coge.
+        Bounds bulto = BultoDe(hit.collider);
+
+        float cima = bulto.max.y;
+        float altoPeluche = bulto.size.y;
 
         // Cuanto se hunde la garra en el peluche, medido para las PUNTAS.
         //
@@ -1397,7 +1411,7 @@ public class ClawController : MonoBehaviour
         //
         // El tope de dos tercios del dedo es para que el peluche no le pase de
         // la bisagra: por encima de ella ya no hay brazo que lo abrace.
-        float hundimiento = Mathf.Min(altoPeluche * grabDepth, alcance * 0.95f);
+        float hundimiento = Mathf.Min(altoPeluche * grabDepth, alcance);
 
         float objetivo = Mathf.Max(cima - hundimiento, sueloY + 0.005f);
         float parada = Mathf.Max(armDownY, armBaseLocalPos.y - (puntasY - objetivo));
@@ -1437,6 +1451,26 @@ public class ClawController : MonoBehaviour
     // arriba cuando la garra ya ha subido. Si esta dentro del hueco de la garra
     // con la garra en alto, es que va agarrado; no hay otra forma de que haya
     // llegado hasta ahi.
+    // Todos los colliders del peluche al que pertenece este, juntos en una caja.
+    Bounds BultoDe(Collider parte)
+    {
+        Rigidbody rb = parte.attachedRigidbody;
+        if (rb == null) return parte.bounds;
+
+        Bounds b = new Bounds();
+        bool primero = true;
+
+        foreach (Collider c in rb.GetComponentsInChildren<Collider>())
+        {
+            if (c == null || c.isTrigger) continue;
+
+            if (primero) { b = c.bounds; primero = false; }
+            else b.Encapsulate(c.bounds);
+        }
+
+        return primero ? parte.bounds : b;
+    }
+
     Rigidbody PelucheEnLaGarra()
     {
         if (hingePoint == null) return null;

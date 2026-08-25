@@ -3839,7 +3839,7 @@ MonoBehaviour:
   gripRandomRange: 40
   currentGripStrength: 0
   useMotorFingers: 1
-  grabDepth: 0.6
+  grabDepth: 0.85
   fingerMotors: {fileID: 3621684585994608460}
   useRealisticGripPhysics: 1
   gripForcePlayerMin: 1
