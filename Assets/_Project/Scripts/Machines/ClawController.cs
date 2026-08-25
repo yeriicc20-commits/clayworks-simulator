@@ -2293,31 +2293,58 @@ public class ClawController : MonoBehaviour
         {
             for (int i = 0; i < fingers.Length; i++)
             {
-                bool hasMovedEnough = Mathf.Abs(currentFingerAngle[i] - startAngle) >= minAngleBeforeContactCheck;
-                bool touchingNow = hasMovedEnough && IsFingerTouchingPlush(i) && TouchIsOnGrabTarget(i);
-
-                if (touchingNow)
+                // Con motores NO se para el cierre al tocar. Es la diferencia
+                // entre los dos sistemas y era la razon de que la garra no
+                // cerrase abajo.
+                //
+                // Con el sistema viejo el dedo se movia escribiendole el
+                // transform, y habia que frenarlo a mano al tocar el peluche o lo
+                // atravesaba. Con un motor de par no hay nada que frenar: empuja
+                // hasta que algo lo para, y ese algo es el peluche.
+                //
+                // Manteniendo el freno, y como la garra baja METIDA 12 cm en el
+                // monton, los dedos ya estaban tocando peluches antes de empezar
+                // a cerrar: se daban por parados a los pocos grados y dejaban de
+                // hablarle al motor. La boca se quedaba en 232 mm de los 251 que
+                // mide abierta, un 8% de cierre. Cerraba de verdad despues, ya
+                // subiendo, cuando FinishClosingUnjointedFingers tomaba el
+                // relevo. Que es exactamente lo que se veia.
+                if (!ConMotores)
                 {
-                    fingerStopped[i] = true;
+                    bool hasMovedEnough = Mathf.Abs(currentFingerAngle[i] - startAngle) >= minAngleBeforeContactCheck;
+                    bool touchingNow = hasMovedEnough && IsFingerTouchingPlush(i) && TouchIsOnGrabTarget(i);
 
-                    if (activeFingerJoints[i] == null)
+                    if (touchingNow)
                     {
-                        TryCreateJointForFinger(i);
+                        fingerStopped[i] = true;
+
+                        if (activeFingerJoints[i] == null)
+                        {
+                            TryCreateJointForFinger(i);
+                        }
+
+                        continue;
                     }
 
-                    continue;
-                }
-
-                if (FingerBlockedByObstacle(i))
-                {
-                    fingerStopped[i] = true;
-                    continue;
+                    if (FingerBlockedByObstacle(i))
+                    {
+                        fingerStopped[i] = true;
+                        continue;
+                    }
                 }
 
                 fingerStopped[i] = false;
 
                 float diff = targetAngle - currentFingerAngle[i];
-                if (Mathf.Abs(diff) <= 0.5f) continue;
+
+                if (Mathf.Abs(diff) <= 0.5f)
+                {
+                    // Ya en el objetivo. Con motores hay que SEGUIR mandando
+                    // cerrar: el dedo de verdad puede estar mucho mas abierto que
+                    // el angulo de esta animacion, porque lo para el peluche.
+                    if (ConMotores) ApplyFingerAngle(i);
+                    continue;
+                }
 
                 float step = Mathf.Sign(diff) * Mathf.Min(Mathf.Abs(diff), fingerSpeed * Time.deltaTime);
                 currentFingerAngle[i] += step;

@@ -65,6 +65,9 @@ public class OrejasBlandas : MonoBehaviour
 
         public float tramo;
         public float freno;
+
+        // Hacia donde cuelga en reposo, en su propio espacio. Medido, no supuesto.
+        public Vector3 eje;
     }
 
     Cable[] cables;
@@ -133,17 +136,36 @@ public class OrejasBlandas : MonoBehaviour
         Vector3[] v = c.malla.vertices;
         c.normal = c.malla.normals;
 
-        // La oreja esta modelada colgando hacia -Y desde su origen, que es la
-        // costura. El largo es lo que baja.
+        // Hacia donde cuelga se MIDE: es el vertice mas lejos de la costura, y
+        // la costura es el origen del objeto.
+        //
+        // Estaba fijado a -Y porque asi sale del exportador, y no salia asi: la
+        // condicion no se cumplia nunca, las orejas se quedaban quietas y cada
+        // peluche soltaba dos avisos al aparecer. Con veinte en la maquina eso
+        // es la consola llena de lo mismo tapando lo que si importa. Y encima el
+        // aviso decia la verdad, asi que era facil leerlo y seguir de largo.
+        //
+        // Midiendolo da igual como venga la malla, y no hay condicion que
+        // incumplir.
+        Vector3 punta = Vector3.zero;
         float largo = 0f;
-        foreach (Vector3 p in v) largo = Mathf.Max(largo, -p.y);
+
+        foreach (Vector3 p in v)
+        {
+            if (p.magnitude <= largo) continue;
+
+            largo = p.magnitude;
+            punta = p;
+        }
 
         if (largo < 1e-4f)
         {
-            Debug.LogWarning("[Orejas] " + t.name + " no cuelga hacia -Y, no se de "
-                             + "donde a donde va. La dejo quieta.");
+            Debug.LogWarning("[Orejas] " + t.name + " tiene la malla toda en su "
+                             + "origen: no hay oreja que colgar.");
             return null;
         }
+
+        c.eje = punta / largo;
 
         int n = Mathf.Max(3, nudos);
 
@@ -154,8 +176,10 @@ public class OrejasBlandas : MonoBehaviour
 
         for (int i = 0; i < v.Length; i++)
         {
-            c.altura[i] = Mathf.Clamp01(-v[i].y / largo);
-            c.perp[i] = new Vector3(v[i].x, 0f, v[i].z);
+            float alo = Vector3.Dot(v[i], c.eje);
+
+            c.altura[i] = Mathf.Clamp01(alo / largo);
+            c.perp[i] = v[i] - c.eje * alo;
         }
 
         c.tramo = largo / (n - 1);
@@ -166,7 +190,7 @@ public class OrejasBlandas : MonoBehaviour
 
         for (int k = 0; k < n; k++)
         {
-            c.nudo[k] = t.TransformPoint(new Vector3(0f, -c.tramo * k, 0f));
+            c.nudo[k] = t.TransformPoint(c.eje * (c.tramo * k));
             c.previo[k] = c.nudo[k];
         }
 
@@ -319,7 +343,7 @@ public class OrejasBlandas : MonoBehaviour
 
             if (d.sqrMagnitude > 1e-10f)
             {
-                acumulado = Quaternion.FromToRotation(acumulado * Vector3.down,
+                acumulado = Quaternion.FromToRotation(acumulado * c.eje,
                                                       d.normalized) * acumulado;
             }
 

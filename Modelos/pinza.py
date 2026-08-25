@@ -32,7 +32,7 @@ GROSOR_PANEL = 0.02
 
 HUECO = 0.30           # por 20 cm no pasa comodo un oso de 25
 ALTO_BOCA = 0.11        # paredes de cristal que impiden que se cuelen peluches
-TOLVA_SUELO = 0.34      # fondo del conducto, donde queda el peluche
+TOLVA_SUELO = 0.26      # fondo del conducto, donde queda el peluche
 TOLVA_PARED = 0.010
 CHAPA = 0.02            # grosor de la carroceria del mueble
 
@@ -56,7 +56,7 @@ VX0 = -ANCHO * 0.5 + CHAPA
 VY0 = -FONDO * 0.5 + CHAPA
 VX1 = HX + HUECO * 0.5 + 0.075
 VY1 = HY + HUECO * 0.5 + 0.115
-VZ0 = 0.295
+VZ0 = 0.210
 
 # Boca de la trampilla, recortada en la chapa frontal
 PX0 = HX - 0.115
@@ -553,8 +553,8 @@ def construir():
     # inventarse un objeto vacio de apoyo.
     puerta_x = (PX0 + PX1) * 0.5
     puerta_ancho = PX1 - PX0
-    puerta_alto = 0.30
-    bisagra_z = TOLVA_SUELO + 0.26
+    puerta_alto = 0.36
+    bisagra_z = TOLVA_SUELO + 0.34
     cara_puerta = -FONDO * 0.5 - 0.004
 
     # El marco va en CUATRO BARRAS, no en una plancha.
