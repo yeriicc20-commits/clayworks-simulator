@@ -3897,6 +3897,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ClawAudio
   moneda: {fileID: 8300000, guid: ed7d1343a86dbf44383d6ba6cf6e99c3, type: 3}
+  aviso: {fileID: 0}
+  alarma: {fileID: 0}
   boton: {fileID: 8300000, guid: 8565e101f91f8704fafb6114b1be0d92, type: 3}
   garraCierra: {fileID: 8300000, guid: 2dc5a4a33b5e00044bfeda712f44ea00, type: 3}
   garraAbre: {fileID: 8300000, guid: 35636fff0949f2246bd02ee271d134e7, type: 3}
@@ -3906,8 +3908,10 @@ MonoBehaviour:
   tope: {fileID: 8300000, guid: a818820b9995cdd40b43a2c289d69ff4, type: 3}
   motorCarro: {fileID: 8300000, guid: d8cfd52c160aca34faf02c3ea09bb376, type: 3}
   motorCable: {fileID: 8300000, guid: d37866a8283ee7d42bbca542b7f91964, type: 3}
+  volumenMotor: 0.1
+  motorCableAudible: 0
   musica: {fileID: 8300000, guid: 6debb3bdab9b2734e9605fd892865aab, type: 3}
-  volumenMusica: 0.45
+  volumenMusica: 0.26
   volumen: 0.8
   distanciaMinima: 2
   distanciaMaxima: 14
@@ -5066,9 +5070,8 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 6f804959d05b3ea45964199cd27b3c2a, type: 2}
-  - {fileID: 2100000, guid: 8deb286e7af568149aab6d3976795ca6, type: 2}
   - {fileID: 2100000, guid: 3bd6c3bcde74e554a86a6853f2da3506, type: 2}
+  - {fileID: 2100000, guid: 8deb286e7af568149aab6d3976795ca6, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -6816,7 +6819,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 6f804959d05b3ea45964199cd27b3c2a, type: 2}
+  - {fileID: 2100000, guid: 767d74104f58004418baacc4dd70fedc, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -7152,7 +7155,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 6f804959d05b3ea45964199cd27b3c2a, type: 2}
+  - {fileID: 2100000, guid: 767d74104f58004418baacc4dd70fedc, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -10855,7 +10858,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 6f804959d05b3ea45964199cd27b3c2a, type: 2}
+  - {fileID: 2100000, guid: 767d74104f58004418baacc4dd70fedc, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

@@ -89,6 +89,10 @@ public class ClawController : MonoBehaviour
     [HideInInspector] public ClawFingerMotors fingerMotors;
     [HideInInspector] public ClawAudio audio3d;
 
+    [Tooltip("Lo que la maquina espera desde que suena la moneda hasta que se "
+             + "puede jugar y arranca la musica.")]
+    public float monedaEspera = 1f;
+
     [Header("Fisica de agarre realista")]
     public bool useRealisticGripPhysics = true;
     public float gripForcePlayerMin = 1f;
@@ -151,7 +155,13 @@ public class ClawController : MonoBehaviour
     [HideInInspector] public bool isControllable = false;
     [HideInInspector] public Transform activeCarrySpot;
     private bool isBusy = false;
-    public bool IsBusy { get { return isBusy; } }
+
+    // Mientras dura el segundo entre la moneda y el arranque. Cuenta como
+    // ocupada de cara a fuera, o el aviso seguiria diciendo "E: jugar" y se
+    // podria pagar dos veces la misma partida.
+    private bool arrancando = false;
+
+    public bool IsBusy { get { return isBusy || arrancando; } }
 
     [Header("NPC")]
     public Transform npcSpot;
@@ -541,6 +551,26 @@ public class ClawController : MonoBehaviour
         return Vector3.Distance(plushRb.worldCenterOfMass, zoneCenter) <= insideGripRadius;
     }
 
+    // Se paga, suena la moneda, y la maquina se toma un segundo antes de dejar
+    // jugar. Ese segundo no es relleno: separa el sonido de la moneda de la
+    // musica, que si arrancan juntos no se oye ninguno de los dos.
+    public void MeterMoneda()
+    {
+        StartCoroutine(ArrancarPartida());
+    }
+
+    IEnumerator ArrancarPartida()
+    {
+        arrancando = true;
+
+        if (audio3d != null) audio3d.Moneda();
+
+        yield return new WaitForSeconds(monedaEspera);
+
+        arrancando = false;
+        isControllable = true;
+    }
+
     void Update()
     {
         // GetKeyDown solo es fiable en Update: en FixedUpdate se pierden
@@ -566,7 +596,9 @@ public class ClawController : MonoBehaviour
 
         // La musica va con el estado de la maquina y no con quien haya pagado,
         // asi vale igual para el jugador y para un NPC.
-        if (audio3d != null) audio3d.Musica(isControllable || isBusy);
+        // La musica no entra hasta que se puede jugar: durante el segundo de
+        // la moneda tiene que oirse la moneda y nada mas.
+        if (audio3d != null) audio3d.Musica((isControllable || isBusy) && !arrancando);
     }
 
     void ApplyArmPosition()
@@ -1086,7 +1118,18 @@ public class ClawController : MonoBehaviour
             currentGripStrength = baseGripStrength + Random.Range(-gripRandomRange, gripRandomRange);
         }
 
+        // Aviso de que empieza, y la alarmita mientras baja: es lo que hace
+        // que la bajada se sienta como un momento y no como un desplazamiento.
+        if (audio3d != null)
+        {
+            audio3d.Aviso();
+            yield return new WaitForSeconds(0.25f);
+            audio3d.Alarma(true);
+        }
+
         yield return MoveArmDownUntilPlushContact();
+
+        if (audio3d != null) audio3d.Alarma(false);
 
         Debug.Log($"[ClawDiag] Descent stopped. armBaseLocalPos.y={armBaseLocalPos.y:F3} armDownY={armDownY:F3}");
 
@@ -1098,8 +1141,8 @@ public class ClawController : MonoBehaviour
 
         if (useRealisticGripPhysics)
         {
-            if (audio3d != null) audio3d.Cierra();
-
+            // Sin sonido al cerrar ni al abrir: pedido asi. Los clips siguen
+            // en el prefab, listos para volver con una linea.
             Coroutine liveGripRoutine = StartCoroutine(CloseFingersLiveGrip(fingerCloseAngle));
 
             yield return new WaitForSeconds(closeBeforeLiftDelay);
@@ -1245,8 +1288,6 @@ public class ClawController : MonoBehaviour
 
         // Quien venga en la garra al llegar aqui es el premio, caiga donde caiga.
         PlushItem prize = GetHeldPlush();
-
-        if (audio3d != null) audio3d.Abre();
 
         if (useRealisticGripPhysics)
         {

@@ -12,6 +12,8 @@ public class ClawAudio : MonoBehaviour
 {
     [Header("Golpes y avisos")]
     public AudioClip moneda;
+    public AudioClip aviso;
+    public AudioClip alarma;
     public AudioClip boton;
     public AudioClip garraCierra;
     public AudioClip garraAbre;
@@ -27,7 +29,7 @@ public class ClawAudio : MonoBehaviour
     [Tooltip("Volumen de los motores respecto al resto. Van de fondo: son un "
              + "zumbido continuo, y un zumbido continuo cansa mucho antes que "
              + "un golpe suelto al mismo volumen.")]
-    [Range(0f, 1f)] public float volumenMotor = 0.18f;
+    [Range(0f, 1f)] public float volumenMotor = 0.10f;
 
     [Tooltip("El motor del cable, el que sube y baja la garra. Apagado: se "
              + "solapaba con el del carro y con la musica justo en el momento "
@@ -107,7 +109,17 @@ public class ClawAudio : MonoBehaviour
 
     // ----------------------------------------------------------------- motores
 
+    public void Aviso() { Sonar(aviso); }
+
     public void MotorCarro(bool encendido) { Motor(encendido ? motorCarro : null); }
+
+    // La alarmita de la bajada comparte la fuente de los motores a proposito:
+    // mientras la garra baja el carro esta quieto, asi que nunca coinciden.
+    public void Alarma(bool encendida)
+    {
+        if (encendida) Motor(alarma, 0.5f);
+        else Motor(null);
+    }
     public void MotorCable(bool encendido)
     {
         Motor(encendido && motorCableAudible ? motorCable : null);
@@ -132,7 +144,7 @@ public class ClawAudio : MonoBehaviour
         musical.Play();
     }
 
-    void Motor(AudioClip clip)
+    void Motor(AudioClip clip, float vol = -1f)
     {
         if (bucle == null) return;
 
@@ -147,7 +159,7 @@ public class ClawAudio : MonoBehaviour
         if (bucle.clip == clip && bucle.isPlaying) return;
 
         bucle.clip = clip;
-        bucle.volume = volumen * volumenMotor;
+        bucle.volume = volumen * (vol < 0f ? volumenMotor : vol);
         bucle.Play();
     }
 }

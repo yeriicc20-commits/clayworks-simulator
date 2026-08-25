@@ -485,6 +485,8 @@ public static class MaquinaGarraBuilder
         ClawAudio audio3d = raiz.AddComponent<ClawAudio>();
 
         audio3d.moneda      = Sonido("Moneda");
+        audio3d.aviso       = Sonido("Aviso");
+        audio3d.alarma      = Sonido("Alarma");
         audio3d.boton       = Sonido("Boton");
         audio3d.garraCierra = Sonido("Garra_Cierra");
         audio3d.garraAbre   = Sonido("Garra_Abre");

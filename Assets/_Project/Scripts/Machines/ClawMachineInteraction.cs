@@ -84,10 +84,9 @@ public class ClawMachineInteraction : MonoBehaviour
 
         if (paid)
         {
-            ClawAudio audio3d = clawController.GetComponent<ClawAudio>();
-            if (audio3d != null) audio3d.Moneda();
-
-            clawController.isControllable = true;
+            // La maquina se encarga: suena la moneda, espera un segundo y
+            // entonces deja jugar. Aqui solo se le avisa de que esta pagada.
+            clawController.MeterMoneda();
             InteractionUI.Hide();
         }
         else
