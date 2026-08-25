@@ -275,6 +275,53 @@ public static class MaquinaGarraBuilder
         cableScript.segmentCount = 6;
         cableScript.sagAmount = 0.004f;
 
+        // ------------------------------------------------------ la trampilla
+        // La puertecilla por la que el jugador saca el premio. Existe en el
+        // modelo desde siempre, pero era decorado: no se abria nunca.
+        if (piezas.ContainsKey("Trampilla"))
+        {
+            Transform hoja = piezas["Trampilla"];
+
+            // El tirador va CON la hoja: si se queda quieto, la puerta se abre
+            // y el tirador se queda flotando en el aire.
+            if (piezas.ContainsKey("Trampilla_Tirador"))
+            {
+                piezas["Trampilla_Tirador"].SetParent(hoja, true);
+            }
+
+            TrampillaPremio puerta = raiz.AddComponent<TrampillaPremio>();
+            puerta.hoja = hoja;
+            puerta.capaPeluche = 1 << CAPA_PLUSH;
+
+            // Donde mira para saber si hay premio: justo por dentro de la
+            // puerta, hacia el fondo de la maquina.
+            Bounds cajaPuerta = Envolvente(piezas, "Trampilla");
+
+            Vector3 dentro = cajaPuerta.center - new Vector3(0f, 0f, frente * 0.22f);
+            puerta.zonaLocal = raiz.transform.InverseTransformPoint(dentro);
+            puerta.radioZona = 0.34f;
+
+            // Se abre hacia FUERA, o sea hacia el frente de la maquina. El
+            // signo sale del lado que ya conocemos, no de probar a ver cual
+            // sale: al exportar a FBX se invierte un eje y adivinarlo es como
+            // salio el recorrido X del reves en su dia.
+            puerta.sentido = frente;
+            puerta.anguloAbierta = 74f;
+            puerta.velocidad = 150f;
+            puerta.esperaCierre = 1.2f;
+
+            // Sin collider: con la puerta abierta el collider barre justo por
+            // donde el jugador mete la mano, y el rayo de recoger el peluche
+            // chocaria contra ella en vez de llegar al premio.
+            Collider suyo = hoja.GetComponent<Collider>();
+            if (suyo != null) Object.DestroyImmediate(suyo);
+        }
+        else
+        {
+            Debug.LogWarning("[Maquina] El modelo no trae Trampilla. El premio se "
+                             + "quedara dentro sin puerta por la que sacarlo.");
+        }
+
         // ------------------------------------------------- zona de interaccion
         // ClawMachineInteraction va con OnTriggerEnter, asi que necesita un
         // trigger EN SU MISMO GameObject. Sin el no aparece nunca el "E: jugar"

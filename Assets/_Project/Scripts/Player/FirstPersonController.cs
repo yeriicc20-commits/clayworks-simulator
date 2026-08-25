@@ -13,7 +13,7 @@ public class FirstPersonController : MonoBehaviour
     public KeyCode crouchKey = KeyCode.LeftControl;
 
     [Tooltip("Que fraccion de su altura mide agachado.")]
-    [Range(0.4f, 0.9f)] public float crouchHeight = 0.6f;
+    [Range(0.3f, 0.9f)] public float crouchHeight = 0.45f;
 
     [Tooltip("Lo despacio que anda agachado, en fraccion de su velocidad.")]
     [Range(0.2f, 1f)] public float crouchSpeed = 0.45f;

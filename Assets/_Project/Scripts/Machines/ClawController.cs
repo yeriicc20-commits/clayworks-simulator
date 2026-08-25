@@ -1279,6 +1279,23 @@ public class ClawController : MonoBehaviour
             if (ConMotores)
             {
                 heldPlushRb = PelucheEnLaGarra();
+
+                // Aqui, y solo aqui, se exige que los brazos hayan cerrado. Si
+                // hay un peluche pero la garra esta practicamente abierta, no lo
+                // ha cogido: lo lleva acunado contra el cono de la cabeza. En vez
+                // de apretar mas, se abre para que se caiga, que es lo que hace
+                // una maquina cuando el agarre no ha prendido.
+                if (heldPlushRb != null && !CierreSuficiente())
+                {
+                    Debug.Log("[Garra] Sube con " + heldPlushRb.name + " encajado, "
+                              + "no cogido: los brazos casi no han cerrado. Lo suelta.");
+
+                    heldPlushRb = null;
+                    fingerMotors.Abrir();
+
+                    yield return new WaitForSeconds(0.35f);
+                }
+
                 jointExistsAfterAttempt = heldPlushRb != null;
 
                 Debug.Log(heldPlushRb != null
@@ -1687,25 +1704,30 @@ public class ClawController : MonoBehaviour
         return primero ? parte.bounds : b;
     }
 
+    // Si los brazos han llegado a cerrarse lo bastante como para que cuente.
+    //
+    // Esto vivia DENTRO de PelucheEnLaGarra, y ahi hacia un destrozo: esa
+    // funcion es la que decide si hay premio al final, y tambien la que vigila
+    // si el peluche se ha caido por el camino. Con el filtro dentro, un agarre
+    // flojo pero real (un peluche gordo, que los dedos apenas pueden cerrar) se
+    // daba por perdido en pleno viaje y al llegar sonaba el de haber perdido con
+    // el peluche cayendo en el cajon.
+    //
+    // Ahora solo se pregunta UNA vez, al confirmar el agarre. A partir de ahi
+    // manda la fisica: si aguanta, aguanta.
+    bool CierreSuficiente()
+    {
+        if (!ConMotores || fingerMotors == null || !fingerMotors.Listo) return true;
+
+        float falta = Mathf.Abs(fingerCloseAngle) * cierreMinimoParaAgarrar;
+
+        return fingerMotors.CierreMinimo() >= falta;
+    }
+
     Rigidbody PelucheEnLaGarra()
     {
         if (hingePoint == null) return null;
 
-        // Si los brazos no han llegado a cerrarse, no hay agarre por mucho que
-        // haya un peluche ahi metido.
-        //
-        // Con el par alto los dedos aprietan tanto estando casi abiertos que el
-        // peluche se queda acunado contra el cono de la cabeza y sube igual: se
-        // veia la garra abierta de par en par con el peluche pegado debajo. Eso
-        // no es coger nada, es que se ha quedado encajado.
-        //
-        // El limite va en fraccion del cierre total, no en grados sueltos, para
-        // que siga valiendo si algun dia cambia la geometria de la garra.
-        if (ConMotores && fingerMotors != null && fingerMotors.Listo)
-        {
-            float falta = Mathf.Abs(fingerCloseAngle) * cierreMinimoParaAgarrar;
-            if (fingerMotors.CierreMinimo() < falta) return null;
-        }
 
         float radio = radioReposo * 1.2f;
 

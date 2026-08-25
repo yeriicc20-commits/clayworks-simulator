@@ -61,9 +61,12 @@ public class PelucheRecogible : MonoBehaviour
             return;
         }
 
-        Avisar("Pulsa E para coger el peluche");
+        Avisar("Clic izquierdo para coger el peluche");
 
-        if (Input.GetKeyDown(KeyCode.E))
+        // Clic izquierdo y no E. Con las manos vacias no lo quiere nadie mas:
+        // BoxCarrier solo lo lee mientras llevas una caja, y HoldToPickup usa
+        // el derecho.
+        if (Input.GetMouseButtonDown(0))
         {
             Ocultar();
             PelucheEnMano.Coger(peluche);
