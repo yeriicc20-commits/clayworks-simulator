@@ -1281,21 +1281,19 @@ public class ClawController : MonoBehaviour
             {
                 heldPlushRb = PelucheEnLaGarra();
 
-                // Aqui, y solo aqui, se exige que los brazos hayan cerrado. Si
-                // hay un peluche pero la garra esta practicamente abierta, no lo
-                // ha cogido: lo lleva acunado contra el cono de la cabeza. En vez
-                // de apretar mas, se abre para que se caiga, que es lo que hace
-                // una maquina cuando el agarre no ha prendido.
-                if (heldPlushRb != null && !CierreSuficiente())
-                {
-                    Debug.Log("[Garra] Sube con " + heldPlushRb.name + " encajado, "
-                              + "no cogido: los brazos casi no han cerrado. Lo suelta.");
-
-                    heldPlushRb = null;
-                    fingerMotors.Abrir();
-
-                    yield return new WaitForSeconds(0.35f);
-                }
+                // La comprobacion del cierre se deja SOLO como aviso.
+                //
+                // Llego a abrir la garra a proposito cuando le parecia que el
+                // agarre no habia prendido, y eso, sumado a que la medida de
+                // entonces estaba mal, tiraba el peluche en cada partida. Que la
+                // maquina se quede con lo que ya ha levantado es un problema muy
+                // pequeno al lado de que tire lo que ha cogido bien.
+                //
+                // Si de verdad hace falta volver a rechazar los agarres flojos,
+                // el numero esta en cierreMinimoParaAgarrar y esta comprobado que
+                // separa los dos casos. Pero primero hay que ver por consola que
+                // la medida dice lo que tiene que decir.
+                if (heldPlushRb != null) CierreSuficiente();
 
                 jointExistsAfterAttempt = heldPlushRb != null;
 

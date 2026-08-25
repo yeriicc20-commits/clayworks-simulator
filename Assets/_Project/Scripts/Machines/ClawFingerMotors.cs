@@ -285,15 +285,50 @@ public class ClawFingerMotors : MonoBehaviour
     public void Cerrar(float par)
     {
         parActual = par;
+        apretando = true;
+
         Motor(Mathf.Sign(closedAngle) * motorSpeed, par);
     }
 
     public void Abrir()
     {
+        apretando = false;
+
         Motor(-Mathf.Sign(closedAngle) * motorSpeed, openTorque);
     }
 
+    // Lo ultimo que se le mando al motor, para poder repetirlo.
+    float velocidadActual = 0f;
+    bool apretando = false;
+
     void Motor(float velocidad, float par)
+    {
+        velocidadActual = velocidad;
+
+        Aplicar(velocidad, par);
+    }
+
+    // El apriete se vuelve a mandar en CADA paso de fisica mientras dure.
+    //
+    // Y no es por gusto. Quien mandaba cerrar era ClawController, desde
+    // ApplyFingerAngle, y eso solo se llama mientras la animacion del angulo
+    // sigue moviendose: en cuanto un dedo topaba con el peluche, la rutina
+    // dejaba de tocarlo y nadie volvia a hablar con el motor en toda la subida.
+    //
+    // Un dedo calzado contra un peluche tiene velocidad casi cero, asi que PhysX
+    // lo daba por dormido al medio segundo. Y un cuerpo dormido no aplica el par
+    // de su articulacion: el apriete desaparecia solo. De ahi las dos cosas que
+    // se veian, que la garra soltaba el peluche a mitad de subida y que se
+    // quedaba floja como si se abriera. No era falta de fuerza, era que la
+    // fuerza dejaba de existir.
+    void FixedUpdate()
+    {
+        if (!apretando || joints == null) return;
+
+        Aplicar(velocidadActual, parActual);
+    }
+
+    void Aplicar(float velocidad, float par)
     {
         if (joints == null) return;
 
@@ -307,6 +342,9 @@ public class ClawFingerMotors : MonoBehaviour
             m.freeSpin = false;
             joints[i].motor = m;
 
+            // Despertarlo cada paso mientras aprieta es lo que impide que se
+            // duerma calzado contra el peluche. Al abrir no hace falta: ahi el
+            // dedo se mueve solo y se duerme cuando le toca, que es lo suyo.
             if (cuerpos[i] != null) cuerpos[i].WakeUp();
         }
     }
