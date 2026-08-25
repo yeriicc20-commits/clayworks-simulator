@@ -45,9 +45,11 @@ public class ClawStrengthDial : MonoBehaviour
     {
         if (motores == null) return;
 
-        // Si el valor cambia por otro lado (el inspector, una partida cargada),
-        // la aguja tiene que enterarse igual.
-        if (!Mathf.Approximately(mostrado, motores.ajuste)) ColocarAguja();
+        // La aguja marca la fuerza EFECTIVA, no solo lo que pusiste en el
+        // mando: sube sola con cada partida sin premio y cae de golpe cuando la
+        // maquina paga. Asi el cuadro cuenta lo que esta haciendo la maquina en
+        // vez de repetir lo que ya sabes que ajustaste.
+        if (!Mathf.Approximately(mostrado, motores.FuerzaEfectiva)) ColocarAguja();
 
         if (!cerca) return;
         if (PricePanel.IsOpen) return;
@@ -67,15 +69,16 @@ public class ClawStrengthDial : MonoBehaviour
         }
 
         InteractionUI.Instance.ShowPrompt(string.Format(
-            "Fuerza de la garra: {0:F0}%   ·   rueda o flechas para ajustar",
-            motores.ajuste * 100f));
+            "Mando: {0:F0}%   ·   ahora aprieta al {1:F0}% ({2} sin premio)   ·   rueda o flechas",
+            motores.ajuste * 100f, motores.FuerzaEfectiva * 100f,
+            motores.jugadasSinPremio));
     }
 
     void ColocarAguja()
     {
         if (motores == null) return;
 
-        mostrado = motores.ajuste;
+        mostrado = motores.FuerzaEfectiva;
 
         if (aguja == null) return;
 

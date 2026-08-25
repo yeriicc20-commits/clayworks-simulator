@@ -3874,7 +3874,7 @@ MonoBehaviour:
   isControllable: 0
   activeCarrySpot: {fileID: 0}
   npcSpot: {fileID: 8970465842557051540}
-  npcStandDistance: 0.7
+  npcStandDistance: 0.4
   npcApproachDistance: 2.2
   npcQueueFirstGap: 1.1
   npcQueueSpacing: 0.8
@@ -9289,7 +9289,7 @@ Transform:
   m_GameObject: {fileID: 6889328116759666800}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 1, z: -0, w: 0}
-  m_LocalPosition: {x: 0, y: 0, z: 1.2050002}
+  m_LocalPosition: {x: 0, y: 0, z: 1.075}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

@@ -1052,8 +1052,12 @@ public class ClawController : MonoBehaviour
         {
             // Como una maquina de verdad: la placa decide cuanta corriente le da
             // al motor en esta partida. Casi siempre poca.
+            int racha = fingerMotors.jugadasSinPremio;
             float par = fingerMotors.ParaEstaPartida();
-            Debug.Log(string.Format("[Garra] Partida con {0:F3} Nm de apriete", par));
+
+            Debug.Log(string.Format(
+                "[Garra] Partida {0} sin premio: {1:F3} Nm (techo {2:F3}, mando {3:F0}%)",
+                racha, par, fingerMotors.TechoActual, fingerMotors.ajuste * 100f));
         }
 
         if (useRealisticGripPhysics)
@@ -1238,6 +1242,11 @@ public class ClawController : MonoBehaviour
 
         if (prize != null)
         {
+            // Se ha llevado uno: la maquina vuelve a apretar flojo desde cero.
+            // Es el intervalo de pago de una recreativa, y es lo que evita que
+            // una racha mala se alargue indefinidamente.
+            if (fingerMotors != null) fingerMotors.Premiado();
+
             StartCoroutine(DeliverPrize(prize));
         }
 

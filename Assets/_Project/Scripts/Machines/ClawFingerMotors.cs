@@ -61,9 +61,17 @@ public class ClawFingerMotors : MonoBehaviour
     [Range(0f, 1f)] public float generousChance = 0.12f;
 
     [Tooltip("Lo que marca el mando del cuadro trasero, de 0 a 1. Es la corriente "
-             + "que el dueno le da al motor, no la dificultad del juego: sube el "
-             + "techo de las partidas flojas y con el todo lo demas.")]
+             + "que el dueno le da al motor, no la dificultad del juego: es el "
+             + "punto de partida del que sube con cada partida sin premio.")]
     [Range(0f, 1f)] public float ajuste = 0.35f;
+
+    [Header("Progresion entre premios")]
+    [Tooltip("A las cuantas partidas sin premio llega al maximo del motor. Es el "
+             + "intervalo de pago de una recreativa: la maquina va apretando un "
+             + "poco mas cada jugada hasta que suelta uno, y ahi vuelve a empezar.")]
+    public int jugadasParaGarantizar = 10;
+
+    [HideInInspector] public int jugadasSinPremio = 0;
 
     [Header("Rozamiento")]
     [Tooltip("Material de los dedos. Sin rozamiento alto no sujeta nada, por "
@@ -76,6 +84,39 @@ public class ClawFingerMotors : MonoBehaviour
 
     public bool Listo { get { return joints != null && joints.Length > 0; } }
     public float ParActual { get { return parActual; } }
+
+    // Techo de par de la proxima partida. Parte de lo que marca el mando y sube
+    // con cada jugada sin premio hasta el maximo del motor.
+    public float TechoActual
+    {
+        get
+        {
+            float baseTecho = Mathf.Lerp(torqueMin, torqueMax, Mathf.Clamp01(ajuste));
+
+            float progreso = jugadasParaGarantizar <= 0
+                             ? 1f
+                             : Mathf.Clamp01((float)jugadasSinPremio / jugadasParaGarantizar);
+
+            // Al cuadrado, no en linea recta. Subiendo en linea recta la maquina
+            // llegaba a agarrar seguro por la cuarta partida y el mando de la
+            // trasera dejaba de importar. Asi se mantiene tacana un buen rato y
+            // se suelta al final, que ademas es como se recuerda una maquina de
+            // estas: muchas seguidas sin nada y de pronto una que si.
+            return Mathf.Lerp(baseTecho, torqueMax, progreso * progreso);
+        }
+    }
+
+    // Lo mismo pero de 0 a 1, que es lo que marca la aguja de la esfera.
+    public float FuerzaEfectiva
+    {
+        get { return Mathf.InverseLerp(torqueMin, torqueMax, TechoActual); }
+    }
+
+    // Se ha llevado uno: la cuenta vuelve a cero, como en una maquina de verdad.
+    public void Premiado()
+    {
+        jugadasSinPremio = 0;
+    }
 
     // ------------------------------------------------------------------ montaje
 
@@ -179,11 +220,10 @@ public class ClawFingerMotors : MonoBehaviour
     // maquina real, bajando la corriente del motor salvo cada tantas jugadas.
     public float ParaEstaPartida()
     {
-        // El mando de la trasera pone el techo de una partida normal. Las
-        // generosas se saltan ese techo y tiran hacia el maximo del motor, que
-        // es lo que hace que de vez en cuando la maquina pague aunque este
-        // regulada floja.
-        float techo = Mathf.Lerp(torqueMin, torqueMax, Mathf.Clamp01(ajuste));
+        // El mando pone el punto de partida y la cuenta de partidas sin premio
+        // lo va subiendo. Las generosas se saltan ese techo y tiran hacia el
+        // maximo, que es lo que hace que a veces pague antes de tiempo.
+        float techo = TechoActual;
 
         bool generosa = Random.value < generousChance;
 
@@ -194,6 +234,8 @@ public class ClawFingerMotors : MonoBehaviour
         parActual = generosa
             ? Random.Range(Mathf.Lerp(techo, torqueMax, 0.5f), torqueMax)
             : Random.Range(Mathf.Lerp(torqueMin, techo, 0.6f), techo);
+
+        jugadasSinPremio++;
 
         return parActual;
     }
