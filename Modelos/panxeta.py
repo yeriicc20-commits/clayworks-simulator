@@ -40,10 +40,13 @@ PERFIL_CUERPO = [
     (0.045, 0.109), (0.034, 0.121), (0.026, 0.130), (0.000, 0.136),
 ]
 
+# La cabeza dejo de ser una bola: mas ancha que alta, con la coronilla
+# aplastada y la barbilla estrechandose. Una bola perfecta no tiene arriba ni
+# abajo, y por eso el muneco no tenia expresion.
 PERFIL_CABEZA = [
-    (0.000, -0.078), (0.030, -0.073), (0.052, -0.061), (0.068, -0.043),
-    (0.077, -0.021), (0.080, 0.003), (0.077, 0.027), (0.068, 0.049),
-    (0.051, 0.066), (0.029, 0.076), (0.000, 0.080),
+    (0.000, -0.072), (0.034, -0.068), (0.056, -0.058), (0.072, -0.042),
+    (0.081, -0.022), (0.085, 0.000), (0.084, 0.020), (0.079, 0.038),
+    (0.069, 0.052), (0.052, 0.062), (0.030, 0.068), (0.000, 0.070),
 ]
 
 
@@ -92,29 +95,102 @@ def malla(nombre, verts, faces, mat, suave=True):
     return ob
 
 
+def densificar(perfil, paso=0.006):
+    """Mete anillos intermedios en un perfil.
+
+    Solo para suavizar la punta de arriba y la de abajo de una mancha, que
+    son lo unico que sigue cortandose por anillos. La silueta no cambia ni
+    un micron: los puntos nuevos caen sobre la misma recta que ya habia.
+    """
+    salida = [perfil[0]]
+
+    for i in range(len(perfil) - 1):
+        r0, z0 = perfil[i]
+        r1, z1 = perfil[i + 1]
+
+        n = max(1, int(round(math.hypot(r1 - r0, z1 - z0) / paso)))
+
+        for k in range(1, n + 1):
+            t = k / n
+            salida.append((r0 + (r1 - r0) * t, z0 + (z1 - z0) * t))
+
+    return salida
+
+
 def torneado(nombre, perfil, mat, centro=(0.0, 0.0, 0.0), aplanado=1.0,
-             segmentos=32):
+             segmentos=64, mancha=None):
     """Cuerpo de revolucion a partir de un perfil de (radio, altura).
 
-    Es lo que permite darle silueta. Un cuerpo que se ensancha en la barriga y
-    se estrecha en el cuello no sale de una esfera estirada por mucho que se
-    retuerza la escala: la escala estira TODO por igual.
+    Es lo que permite darle silueta. Un cuerpo que se ensancha en la barriga
+    y se estrecha en el cuello no sale de una esfera estirada por mucho que
+    se retuerza la escala: la escala estira TODO por igual.
 
-    El aplanado lo achata en Y, que un peluche cosido siempre es mas ancho que
-    hondo.
+    La MANCHA va dentro de esta misma malla, y esa es la parte que costo.
+
+    Primero fue una pieza aparte puesta por encima: por poco que la separes
+    se le ve el borde levantado, y si no la separas parpadea. Luego fue
+    pintar las caras que caian dentro, que no hace ningun salto porque es la
+    propia superficie, pero el contorno solo podia seguir la rejilla y salia
+    a escalones, como dibujada en un Tetris. Subir la resolucion tampoco
+    valia: a 17.000 caras los escalones seguian viendose.
+
+    Lo que se hace ahora es al reves: en vez de amoldar la mancha a la
+    rejilla, se amolda la REJILLA a la mancha. Cada anillo reparte sus
+    puntos en dos tramos, el que va por dentro del contorno y el que va por
+    fuera, asi que el borde cae exactamente donde tiene que caer y sale una
+    curva limpia. Todos los anillos llevan el mismo numero de puntos, con lo
+    que la malla sigue siendo una cuadricula normal y corriente.
     """
-    verts, faces = [], []
+    if mancha:
+        perfil = densificar(perfil)
+        z0, z1, cang, abertura = mancha[0], mancha[1], mancha[2], mancha[3]
+
+        # Reparto los puntos segun lo que ocupa cada tramo, para que salgan
+        # igual de juntos dentro y fuera de la mancha.
+        dentro = max(8, int(round(segmentos * abertura / math.pi)))
+        fuera = max(8, segmentos - dentro)
+    else:
+        dentro, fuera = 0, segmentos
+
+    por_anillo = dentro + fuera
+
+    def anillo(z_abs):
+        # Los angulos de un anillo, y si a esa altura hay mancha.
+        if not mancha:
+            return [2.0 * math.pi * k / fuera for k in range(fuera)], False
+
+        if z_abs <= z0 or z_abs >= z1:
+            forma, hay = 0.03, False
+        else:
+            # Elipse: el borde llega perpendicular arriba y abajo y la
+            # mancha queda redonda. Con un seno saldria un rombo.
+            u = (z_abs - z0) / (z1 - z0)
+            forma = max(0.03, math.sqrt(max(0.0, 1.0 - (2.0 * u - 1.0) ** 2)))
+            hay = True
+
+        media = abertura * forma
+        lo, hi = cang - media, cang + media
+
+        angs = [lo + (hi - lo) * k / (dentro - 1) for k in range(dentro)]
+
+        resto = lo + 2.0 * math.pi - hi
+        angs += [hi + resto * k / (fuera + 1) for k in range(1, fuera + 1)]
+
+        return angs, hay
+
+    verts, faces, indices, hay_mancha = [], [], [], []
 
     cx, cy, cz = centro[0], centro[1], centro[2] + Z0
     n = len(perfil)
 
-    # El perfil empieza y acaba en radio cero: esos dos son los polos.
     verts.append((cx, cy, cz + perfil[0][1]))
 
     for i in range(1, n - 1):
         r, z = perfil[i]
-        for k in range(segmentos):
-            a = 2.0 * math.pi * k / segmentos
+        angs, hay = anillo(z + centro[2])
+        hay_mancha.append(hay)
+
+        for a in angs:
             verts.append((cx + math.cos(a) * r,
                           cy + math.sin(a) * r * aplanado,
                           cz + z))
@@ -122,105 +198,35 @@ def torneado(nombre, perfil, mat, centro=(0.0, 0.0, 0.0), aplanado=1.0,
     verts.append((cx, cy, cz + perfil[-1][1]))
 
     anillos = n - 2
-    ultimo = 1 + (anillos - 1) * segmentos
+    ultimo = 1 + (anillos - 1) * por_anillo
 
-    for k in range(segmentos):
-        k2 = (k + 1) % segmentos
+    for k in range(por_anillo):
+        k2 = (k + 1) % por_anillo
         faces.append([0, 1 + k2, 1 + k])
+        indices.append(0)
         faces.append([len(verts) - 1, ultimo + k, ultimo + k2])
+        indices.append(0)
 
     for i in range(anillos - 1):
-        a0 = 1 + i * segmentos
-        a1 = 1 + (i + 1) * segmentos
-        for k in range(segmentos):
-            k2 = (k + 1) % segmentos
+        a0 = 1 + i * por_anillo
+        a1 = a0 + por_anillo
+
+        pinta = bool(mancha) and (hay_mancha[i] or hay_mancha[i + 1])
+
+        for k in range(por_anillo):
+            k2 = (k + 1) % por_anillo
             faces.append([a0 + k, a0 + k2, a1 + k2, a1 + k])
+            indices.append(1 if (pinta and k < dentro - 1) else 0)
 
-    return malla(nombre, verts, faces, mat)
+    ob = malla(nombre, verts, faces, mat)
 
+    if mancha:
+        ob.data.materials.append(mancha[4])
 
-def parche(nombre, perfil, centro, aplanado, mat, z0, z1, ang, abertura,
-           sep=0.0009, grosor=0.0016, filas=12, columnas=16):
-    """Una MANCHA sobre la superficie, no un bulto pegado encima.
+        for p, idx in zip(ob.data.polygons, indices):
+            p.material_index = idx
 
-    Antes las manchas eran esferas aplastadas puestas sobre la cabeza, y se
-    veian como lo que eran: pegotes que sobresalen. Una mancha de un peluche
-    es tela de otro color cosida al patron: sigue la curva exacta de la
-    pieza y no abulta.
-
-    Asi que se genera a partir del MISMO perfil que la pieza sobre la que
-    va, muestreando su superficie en una ventana de alturas y angulos, y
-    separandola menos de un milimetro para que se dibuje por delante.
-
-    La ventana se estrecha por arriba y por abajo, con lo que la mancha sale
-    ovalada en vez de un rectangulo pegado.
-    """
-    def radio(z):
-        zl = z - centro[2]
-
-        if zl <= perfil[0][1] or zl >= perfil[-1][1]:
-            return 0.0
-
-        for i in range(len(perfil) - 1):
-            r0, za = perfil[i]
-            r1, zb = perfil[i + 1]
-
-            if za <= zl <= zb:
-                t = (zl - za) / max(1e-6, zb - za)
-                return r0 + (r1 - r0) * t
-
-        return 0.0
-
-    verts, faces = [], []
-
-    for fuera in (grosor, 0.0):
-        for i in range(filas + 1):
-            u = i / filas
-            z = z0 + (z1 - z0) * u
-
-            # Elipse, no seno. Con seno los extremos se cierran en punta y la
-            # mancha sale con forma de rombo; con la raiz el borde llega
-            # perpendicular y queda redondo.
-            forma = math.sqrt(max(0.0, 1.0 - (2.0 * u - 1.0) ** 2))
-            media = abertura * max(0.06, forma)
-
-            r = radio(z) + sep + fuera
-
-            for k in range(columnas + 1):
-                a = ang - media + 2.0 * media * k / columnas
-                verts.append((math.cos(a) * r + centro[0],
-                              math.sin(a) * r * aplanado + centro[1],
-                              z + centro[2] * 0.0 + Z0))
-
-    porCapa = (filas + 1) * (columnas + 1)
-
-    for capa in (0, 1):
-        base = capa * porCapa
-        for i in range(filas):
-            for k in range(columnas):
-                a0 = base + i * (columnas + 1) + k
-                a1 = a0 + 1
-                b0 = a0 + (columnas + 1)
-                b1 = b0 + 1
-
-                if capa == 0:
-                    faces.append([a0, a1, b1, b0])
-                else:
-                    faces.append([a0, b0, b1, a1])
-
-    # El canto, para que no se vea una lamina de papel por el borde
-    for i in range(filas):
-        for lado in (0, columnas):
-            a0 = i * (columnas + 1) + lado
-            b0 = a0 + (columnas + 1)
-            faces.append([a0, b0, b0 + porCapa, a0 + porCapa])
-
-    for k in range(columnas):
-        for fila in (0, filas):
-            a0 = fila * (columnas + 1) + k
-            faces.append([a0, a0 + 1, a0 + 1 + porCapa, a0 + porCapa])
-
-    return malla(nombre, verts, faces, mat)
+    return ob
 
 
 def bulto(nombre, tam, centro, mat, giro=None, segmentos=22):
@@ -261,17 +267,14 @@ def solapa(nombre, arranque, camino, ancho, grosor, mat, lados=12):
     n = len(camino)
 
     for i, (p, escala) in enumerate(camino):
-        # La seccion va en ejes FIJOS: el ancho en X y el grosor en Y, siempre.
-        #
-        # Antes giraba siguiendo el camino, y como el camino baja y se abre, la
-        # solapa se abria en abanico: parecian alas de murcielago. Una oreja de
-        # trapo no hace eso. Es un panel plano que cuelga, y su cara mira
-        # siempre al mismo sitio por mucho que la punta se curve.
+        # Seccion en ejes FIJOS: el grosor en X, que es hacia donde esta la
+        # cabeza, y el ancho en Y, de delante a atras. Asi la oreja se apoya de
+        # canto contra el craneo en vez de cruzarlo.
         for k in range(lados):
             a = 2.0 * math.pi * k / lados
             q = (p
-                 + Vector((math.cos(a) * ancho * 0.5 * escala, 0.0, 0.0))
-                 + Vector((0.0, math.sin(a) * grosor * 0.5 * escala, 0.0)))
+                 + Vector((math.cos(a) * grosor * 0.5 * escala, 0.0, 0.0))
+                 + Vector((0.0, math.sin(a) * ancho * 0.5 * escala, 0.0)))
             verts.append((q.x, q.y, q.z))
 
     for s in range(n - 1):
@@ -294,25 +297,16 @@ def solapa(nombre, arranque, camino, ancho, grosor, mat, lados=12):
     return ob
 
 
-PERFIL_CABEZA = [
-    (0.000, -0.078), (0.030, -0.073), (0.052, -0.061), (0.068, -0.043),
-    (0.077, -0.021), (0.080, 0.003), (0.077, 0.027), (0.068, 0.049),
-    (0.051, 0.066), (0.029, 0.076), (0.000, 0.080),
-]
+def radio_perfil(perfil, z, centro_z):
+    # Radio del torneado a una altura dada.
+    zl = z - centro_z
 
-CABEZA_Z = 0.196
-
-
-def radio_cabeza(z):
-    """Radio de la cabeza a una altura dada, interpolando su perfil."""
-    zl = z - CABEZA_Z
-
-    if zl <= PERFIL_CABEZA[0][1] or zl >= PERFIL_CABEZA[-1][1]:
+    if zl <= perfil[0][1] or zl >= perfil[-1][1]:
         return 0.0
 
-    for i in range(len(PERFIL_CABEZA) - 1):
-        r0, z0 = PERFIL_CABEZA[i]
-        r1, z1 = PERFIL_CABEZA[i + 1]
+    for i in range(len(perfil) - 1):
+        r0, z0 = perfil[i]
+        r1, z1 = perfil[i + 1]
 
         if z0 <= zl <= z1:
             t = (zl - z0) / max(1e-6, z1 - z0)
@@ -321,62 +315,93 @@ def radio_cabeza(z):
     return 0.0
 
 
-def oreja(nombre, sx, mat, ancho=0.058, grosor=0.017):
-    """Panel plano colgando del lado de la cabeza.
+def oreja(nombre, sx, mat, ancho=0.042, grosor=0.020):
+    """Oreja larga y caida, apoyada por fuera de la cabeza.
 
-    Se cose POR DENTRO de la silueta a proposito: el arranque queda
-    enterrado en la cabeza, que es lo que hace una costura de verdad y
-    ademas evita que se vea el canto de la tela por donde se une. Lo que
-    asoma es de media oreja para abajo.
+    Dos cosas la estropeaban.
 
-    Antes seguia el contorno del craneo y quedaba peor: al ir apartandose
-    conforme bajaba, acababa a cuatro centimetros de la cabeza con aire en
-    medio. Una oreja cuelga; no se separa.
+    La seccion era CONSTANTE y salia un ladrillo cortado en seco, como una
+    patilla pegada. Una oreja de trapo no es un prisma: nace estrecha en la
+    costura, se abre en el medio y se cierra en punta roma. Eso es
+    contorno().
+
+    Y el camino seguia el radio de la cabeza TODO el recorrido. Pasado el
+    ecuador la cabeza se estrecha, asi que la oreja se estrechaba con ella y
+    la punta acababa a 13 mm del eje, o sea metida detras del cuerpo. Una
+    oreja caida se apoya mientras hay cabeza y a partir de ahi CUELGA: por
+    eso la x no baja nunca, se queda en el maximo que alcanzo.
+
+    De paso eso garantiza que no la atraviesa. Por encima del ecuador va
+    justo pegada al perfil, y por debajo se queda mas afuera que el punto
+    mas ancho de la cabeza.
     """
-    arranque_z = 0.216
-    largo = 0.164
-    pasos = 16
+    def contorno(t):
+        if t <= 0.35:
+            return 0.55 + 0.45 * math.sin(t / 0.35 * math.pi * 0.5)
 
-    x_arriba = 0.066
-    x_abajo = 0.078
+        return 0.12 + 0.88 * math.cos((t - 0.35) / 0.65 * math.pi * 0.5)
+
+    arranque_z = 0.234
+    largo = 0.196
+    pasos = 26
 
     camino = []
     base = None
+    x = 0.0
 
     for i in range(pasos + 1):
         t = i / pasos
-
-        # Se abre un poco al bajar y la punta se vuelve hacia dentro, que
-        # es lo que hace el peso de la tela.
-        x = x_arriba + (x_abajo - x_arriba) * math.sin(math.pi * min(1.0, t * 1.15))
-        atras = -0.014 + t * 0.008
         z = arranque_z - largo * t
 
-        escala = 1.0 - 0.34 * t * t
+        r = radio_perfil(PERFIL_CABEZA, z, 0.196)
+        x = max(x, r + grosor * 0.5 + 0.002)
 
-        p = Vector((sx * x, atras, z))
+        # Cae un poco hacia atras, que es por donde nace la oreja, y asi
+        # ademas la punta no le pega a la mano.
+        p = Vector((sx * x, 0.002 + t * 0.020, z))
+
         if base is None:
             base = p
 
-        camino.append((p - base, escala))
+        camino.append((p - base, contorno(t)))
 
-    return solapa(nombre, (base.x, base.y, base.z), camino, ancho, grosor, mat)
+    return solapa(nombre, (base.x, base.y, base.z), camino, ancho, grosor,
+                  mat, lados=16)
 
 
 def sonrisa(nombre, mat):
-    """La boca: un hilo. En la foto es una costura fina y ancha."""
-    # Ancha y poco honda. Antes abarcaba 116 grados y bajaba mucho: salia una U
-    # en vez de una sonrisa.
-    radio = 0.036
-    grosor = 0.0018
-    centro = Vector((0.0, -0.074, 0.178 + Z0))
+    """La boca: un hilo en U pegado a la cara.
 
-    pasos, lados = 22, 8
+    Iba en un plano vertical fijo, a una Y constante. Como la cara se va
+    hacia atras conforme te separas del centro, los dos extremos de la boca
+    quedaban 5 mm DENTRO de la cabeza y no se veian: por eso parecia una
+    rayita corta por mucho que se ensanchara el arco.
+
+    Ahora cada punto se apoya en la superficie: se calcula el radio de la
+    cabeza a esa altura y se despeja la Y que le toca.
+    """
+    radio = 0.031
+    grosor = 0.0019
+    alto = 0.186
+    aplanado = 0.90
+
+    pasos, lados = 26, 8
     camino = []
 
     for i in range(pasos + 1):
-        a = math.radians(208.0 + 124.0 * i / pasos)
-        camino.append(Vector((math.cos(a) * radio, 0.0, math.sin(a) * radio * 0.52)))
+        # 160 grados centrados abajo: una U, no una raya.
+        a = math.radians(190.0 + 160.0 * i / pasos)
+
+        x = math.cos(a) * radio
+        z = alto + math.sin(a) * radio
+
+        # El -0.004 es el desplazamiento de la cabeza, que no esta centrada
+        # en el eje. Sin el, la boca entera quedaba 3 mm por dentro del morro y
+        # no se veia ni ensanchando el arco.
+        r = radio_perfil(PERFIL_CABEZA, z, 0.196)
+        y = -0.004 - aplanado * math.sqrt(max(0.0, r * r - x * x)) - 0.0012
+
+        camino.append(Vector((x, y, z + Z0)))
 
     verts, faces = [], []
 
@@ -390,16 +415,18 @@ def sonrisa(nombre, mat):
         tg.normalize()
 
         nor = Vector((tg.z, 0.0, -tg.x))
+        nor.normalize()
 
         for k in range(lados):
             a = 2 * math.pi * k / lados
-            q = p + nor * (math.cos(a) * grosor) + Vector((0.0, math.sin(a) * grosor, 0.0))
-            verts.append((q.x + centro.x, q.y + centro.y, q.z + centro.z))
+            q = (p + nor * (math.cos(a) * grosor)
+                 + Vector((0.0, math.sin(a) * grosor, 0.0)))
+            verts.append((q.x, q.y, q.z))
 
-    for s in range(len(camino) - 1):
+    for t in range(len(camino) - 1):
         for k in range(lados):
-            a0 = s * lados + k
-            a1 = s * lados + (k + 1) % lados
+            a0 = t * lados + k
+            a1 = t * lados + (k + 1) % lados
             faces.append([a0, a1, a1 + lados, a0 + lados])
 
     faces.append(list(range(lados - 1, -1, -1)))
@@ -462,22 +489,19 @@ def construir():
         (0.065, 0.046), (0.066, 0.062), (0.063, 0.078), (0.056, 0.094),
         (0.045, 0.109), (0.034, 0.121), (0.026, 0.130), (0.000, 0.136),
     ]
-    piezas.append(torneado("Cuerpo", perfil_cuerpo, blanco, aplanado=0.92))
+    piezas.append(torneado("Cuerpo", perfil_cuerpo, blanco, aplanado=0.92,
+                           mancha=(0.026, 0.094, math.radians(-90.0),
+                                   math.radians(48.0), naranja)))
 
     # --- cabeza: mas ancha que el cuerpo y algo achatada --------------------
     piezas.append(torneado("Cabeza", PERFIL_CABEZA, blanco,
-                           centro=(0.0, -0.004, 0.196), aplanado=0.94))
+                           centro=(0.0, -0.004, 0.196), aplanado=0.90,
+                           mancha=(0.186, 0.264, math.radians(-52.0),
+                                   math.radians(33.0), naranja)))
 
     # --- orejas: solapas planas que arrancan EN la cabeza -------------------
     piezas.append(oreja("Oreja_Izq", -1, negro))
     piezas.append(oreja("Oreja_Der", 1, negro))
-
-    # --- mancha del ojo -----------------------------------------------------
-    # UNA sola, sobre un ojo. Antes habia dos y ademas eran bultos pegados: la
-    # cabeza parecia tener chichones.
-    piezas.append(parche("Mancha_Ojo", PERFIL_CABEZA, (0.0, -0.004, 0.196), 0.94,
-                         naranja, 0.194, 0.240, math.radians(-52.0),
-                         math.radians(29.0)))
 
     # --- cara: ojos y nariz pequenos ----------------------------------------
     piezas.append(bulto("Ojo_Izq", (0.013, 0.010, 0.014),
@@ -490,16 +514,8 @@ def construir():
 
     piezas.append(sonrisa("Boca", negro))
 
-    # --- barriga y ombligo ---------------------------------------------------
-    # La barriga tambien es una mancha cosida, no un bulto: se superponia al
-    # cuerpo y quedaba como una pelota metida por delante.
-    piezas.append(parche("Barriga", PERFIL_CUERPO, (0.0, 0.0, 0.0), 0.92,
-                         naranja, 0.026, 0.094, math.radians(-90.0),
-                         math.radians(46.0)))
-
-    piezas.append(parche("Ombligo", PERFIL_CUERPO, (0.0, 0.0, 0.0), 0.92,
-                         naranja_osc, 0.052, 0.064, math.radians(-90.0),
-                         math.radians(7.0), sep=0.0028, filas=6, columnas=8))
+    piezas.append(bulto("Ombligo", (0.015, 0.013, 0.015),
+                        (0.0, -0.0552, 0.058), naranja_osc, segmentos=16))
 
     # --- manos naranjas colgando de un cordon --------------------------------
     for lado, sx in (("Izq", -1), ("Der", 1)):
