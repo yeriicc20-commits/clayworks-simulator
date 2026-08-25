@@ -1281,51 +1281,128 @@ public class ClawController : MonoBehaviour
         }
     }
 
+    // Hasta donde baja la garra, medido de lo que hay debajo.
+    //
+    // Como funciona una de verdad: la garra baja colgando de un cable y sigue
+    // bajando hasta que se POSA sobre algo. Ahi el cable se afloja, un final de
+    // carrera lo nota y para. No hay ningun sensor que vea el peluche desde
+    // arriba; lo que para la bajada es el contacto.
+    //
+    // Lo que habia era otra cosa: paraba cuando el peluche quedaba a 5 cm de la
+    // BISAGRA, que es el punto de giro y esta arriba del todo, a lo largo de un
+    // dedo por encima de las puntas. La garra se quedaba encaramada sobre el
+    // peluche y despues cerraba en el aire, por encima de el. Por eso no
+    // agarraba: no llegaba a rodearlo nunca.
+    //
+    // Aqui se barre una esfera del ancho de la garra hacia abajo, se mira la
+    // cima de lo primero que encuentra, y se baja hasta que las PUNTAS quedan
+    // hundidas en esa cima. Hundidas y no rozandola: una garra que se posa sobre
+    // un monton de peluches se hunde, y es hundiendose como los brazos acaban
+    // abrazandolo por los lados en vez de resbalar por encima.
+    float AlturaDeParada()
+    {
+        float puntasY = PuntaMasBaja();
+        float alcance = Mathf.Max(0.01f, hingePoint.position.y - puntasY);
+        float maxDescenso = armBaseLocalPos.y - armDownY;
+
+        if (maxDescenso <= 0f) return armDownY;
+
+        // El suelo, deducido: al final del recorrido las puntas quedan justo
+        // encima de el, que es como se calculo armDownY al montar la maquina.
+        float sueloY = puntasY - maxDescenso;
+
+        RaycastHit hit;
+        bool hay = Physics.SphereCast(hingePoint.position,
+                                      Mathf.Max(0.02f, RadioGarra() * 0.75f),
+                                      Vector3.down, out hit, maxDescenso + alcance,
+                                      plushLayer, QueryTriggerInteraction.Ignore);
+
+        if (!hay)
+        {
+            intendedTargetRb = null;
+            return armDownY;   // no hay nada: hasta abajo
+        }
+
+        intendedTargetRb = hit.collider.attachedRigidbody;
+
+        float cima = hit.collider.bounds.max.y;
+        float altoPeluche = hit.collider.bounds.size.y;
+
+        // Cuanto se hunde. Medio peluche, con tope en dos tercios del dedo: si
+        // se hunde menos, los brazos se cierran por encima; si se hunde mas, el
+        // peluche le pasa de la bisagra y ya no hay nada que abrazar.
+        float hundimiento = Mathf.Min(altoPeluche * 0.5f, alcance * 0.66f);
+
+        float objetivo = Mathf.Max(cima - hundimiento, sueloY + 0.005f);
+        float parada = Mathf.Max(armDownY, armBaseLocalPos.y - (puntasY - objetivo));
+
+        Debug.Log(string.Format(
+            "[Garra] Bajada sobre {0}: cima={1:F3} alto={2:F3} hundimiento={3:F3} "
+            + "puntas acaban en {4:F3} (suelo {5:F3})",
+            hit.collider.name, cima, altoPeluche, hundimiento, objetivo, sueloY));
+
+        return parada;
+    }
+
+    float PuntaMasBaja()
+    {
+        float y = float.MaxValue;
+
+        for (int i = 0; i < fingers.Length; i++)
+        {
+            Transform p = (fingerTips != null && fingerTips.Length > i && fingerTips[i] != null)
+                          ? fingerTips[i] : fingers[i];
+
+            if (p != null) y = Mathf.Min(y, p.position.y);
+        }
+
+        return y == float.MaxValue ? hingePoint.position.y : y;
+    }
+
+    float RadioGarra()
+    {
+        float r = 0f;
+
+        for (int i = 0; i < fingers.Length; i++)
+        {
+            Transform p = (fingerTips != null && fingerTips.Length > i && fingerTips[i] != null)
+                          ? fingerTips[i] : fingers[i];
+
+            if (p == null) continue;
+
+            Vector3 d = p.position - hingePoint.position;
+            d.y = 0f;
+            r = Mathf.Max(r, d.magnitude);
+        }
+
+        return r;
+    }
+
     IEnumerator MoveArmDownUntilPlushContact()
     {
         intendedTargetRb = null;
 
         Vector3 pos = armBaseLocalPos;
-        float startY = pos.y;
         float safetyTimer = 0f;
         float currentVelY = 0f;
-        bool loggedNoDetection = false;
 
-        while (pos.y > armDownY)
+        // Se decide antes de empezar, con la garra quieta. Medir mientras baja
+        // daria una lectura distinta cada fotograma y la parada saldria a una
+        // altura u otra segun el momento en que se hiciese la comprobacion.
+        float parada = AlturaDeParada();
+
+        while (pos.y > parada)
         {
-            bool hasDescendedEnough = (startY - pos.y) >= minDescentBeforeStop;
-
-            if (hasDescendedEnough)
-            {
-                Collider detected = DetectPlushBelowClaw();
-
-                if (detected != null)
-                {
-                    float ballDistance = Vector3.Distance(detected.ClosestPoint(hingePoint.position), hingePoint.position);
-                    if (ballDistance <= gripHeightOffset)
-                    {
-                        intendedTargetRb = detected.attachedRigidbody;
-                        Debug.Log($"[ClawDiag] Ball stop triggered: {detected.name} ballDistance={ballDistance:F3} pos.y={pos.y:F3}");
-                        break;
-                    }
-                }
-                else if (!loggedNoDetection)
-                {
-                    loggedNoDetection = true;
-                    Debug.Log($"[ClawDiag] DetectPlushBelowClaw found nothing yet at pos.y={pos.y:F3}");
-                }
-            }
-
-            float remaining = pos.y - armDownY;
+            float remaining = pos.y - parada;
             float targetSpeed = ApproachSpeed(remaining, armMoveSpeed, armDeceleration);
             float targetVelY = -targetSpeed;
             currentVelY = Mathf.MoveTowards(currentVelY, targetVelY, armAcceleration * Time.deltaTime);
 
             pos.y += currentVelY * Time.deltaTime;
 
-            if (pos.y < armDownY)
+            if (pos.y < parada)
             {
-                pos.y = armDownY;
+                pos.y = parada;
             }
 
             armBaseLocalPos = pos;
@@ -1335,6 +1412,9 @@ public class ClawController : MonoBehaviour
 
             yield return null;
         }
+
+        Debug.Log(string.Format("[Garra] Bajada terminada en {0:F3} (tope {1:F3})",
+                                armBaseLocalPos.y, armDownY));
     }
 
     Collider DetectPlushBelowClaw()

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PlushItem : MonoBehaviour
@@ -45,55 +46,103 @@ public class PlushItem : MonoBehaviour
         }
     }
 
-    // UN collider para todo el peluche, medido de lo que se ve.
+    // Colliders medidos en el espacio DEL PELUCHE, una caja por parte.
     //
-    // Antes se le ponia uno por malla, y ahi estaba el fallo: las mallas de
-    // estos modelos son varios trozos repartidos por el muneco, asi que la caja
-    // de cada una abarcaba el peluche entero. Cuatro cajas grandes solapadas =
-    // un cubo invisible alrededor, y los peluches flotando sin tocarse.
+    // El fallo que habia aqui era sutil y explica el hueco invisible que se veia
+    // entre peluches: se median con renderer.bounds, que es la caja alineada con
+    // los ejes DEL MUNDO. Y los peluches nacen con Random.rotation. Un oso
+    // girado 45 grados en los tres ejes tiene una caja de mundo hasta un 73 por
+    // ciento mas grande que el, asi que su collider salia inflado en esa misma
+    // proporcion. Y como el giro es aleatorio, cada peluche se inflaba distinto:
+    // de ahi que el hueco pareciese caprichoso.
     //
-    // Un peluche no necesita colision por piezas: lo que decide como se apilan
-    // es su volumen general. Uno solo es ademas cuatro veces mas barato, que
-    // con veinte dentro de la maquina se nota.
+    // Midiendo los vertices en el espacio del propio peluche, el giro deja de
+    // importar y la caja sale del tamano que es.
+    //
+    // Ademas se pone una caja POR PARTE en vez de una sola para todo. Un oso no
+    // es un ladrillo: con una caja unica, dos osos se tocan por las esquinas de
+    // sus cajas y se ven separados. Con cabeza y cuerpo por separado encajan
+    // como encajan de verdad. Las piezas pequenas (ojos, morro) se descartan:
+    // no cambian nada y cada una seria un par de contacto mas.
     void EnsureAccurateColliders()
     {
         if (GetComponent<Collider>() != null) return;
 
-        Renderer[] renderers = GetComponentsInChildren<Renderer>();
+        MeshFilter[] mallas = GetComponentsInChildren<MeshFilter>();
 
-        Bounds combined = new Bounds();
-        bool any = false;
+        var partes = new List<Bounds>();
+        float mayor = 0f;
 
-        foreach (Renderer rend in renderers)
+        foreach (MeshFilter mf in mallas)
         {
-            if (rend == null || rend is ParticleSystemRenderer) continue;
+            if (mf == null || mf.sharedMesh == null) continue;
 
-            if (!any)
-            {
-                combined = rend.bounds;
-                any = true;
-            }
-            else
-            {
-                combined.Encapsulate(rend.bounds);
-            }
+            Bounds b = EnEspacioLocal(mf);
+            if (b.size.sqrMagnitude < 1e-8f) continue;
+
+            partes.Add(b);
+            mayor = Mathf.Max(mayor, b.size.magnitude);
         }
 
-        if (!any) return;
+        if (partes.Count == 0) return;
 
-        BoxCollider box = gameObject.AddComponent<BoxCollider>();
+        int puestos = 0;
 
-        box.center = transform.InverseTransformPoint(combined.center);
+        foreach (Bounds b in partes)
+        {
+            // Menos de un tercio de la pieza mayor es un adorno.
+            if (partes.Count > 1 && b.size.magnitude < mayor * 0.33f) continue;
 
-        // Encogido a proposito. Un peluche es blando: se aplasta un poco al
-        // apoyarse, y con el collider justo a su silueta se ven separados por
-        // un hueco. Encogerlo les hace parecer que se tocan y se hunden un
-        // poco unos en otros, que es lo que hace un monton de peluches.
-        Vector3 size = transform.InverseTransformVector(combined.size);
+            BoxCollider box = gameObject.AddComponent<BoxCollider>();
+            box.center = b.center;
 
-        box.size = new Vector3(Mathf.Abs(size.x), Mathf.Abs(size.y), Mathf.Abs(size.z)) * colliderShrink;
+            // Encogido a proposito. Un peluche es blando: se aplasta un poco al
+            // apoyarse, y con el collider justo a su silueta se ven separados
+            // por un hueco. Encogerlo les hace parecer que se tocan y se hunden
+            // un poco unos en otros, que es lo que hace un monton de peluches.
+            box.size = b.size * colliderShrink;
+            box.sharedMaterial = physicsMaterial;
 
-        box.sharedMaterial = physicsMaterial;
+            puestos++;
+        }
+
+        // Red de seguridad: si el filtro se lo ha comido todo, una caja para
+        // todo el peluche antes que dejarlo sin collider.
+        if (puestos == 0)
+        {
+            Bounds todo = partes[0];
+            for (int i = 1; i < partes.Count; i++) todo.Encapsulate(partes[i]);
+
+            BoxCollider box = gameObject.AddComponent<BoxCollider>();
+            box.center = todo.center;
+            box.size = todo.size * colliderShrink;
+            box.sharedMaterial = physicsMaterial;
+        }
+    }
+
+    // Caja de una malla en el espacio del peluche, pasando sus ocho esquinas.
+    // No vale con escalar el tamano: si la pieza viene girada respecto al
+    // peluche, la caja hay que rehacerla a partir de los puntos.
+    Bounds EnEspacioLocal(MeshFilter mf)
+    {
+        Bounds local = mf.sharedMesh.bounds;
+        Bounds fuera = new Bounds();
+        bool primero = true;
+
+        for (int i = 0; i < 8; i++)
+        {
+            Vector3 signo = new Vector3((i & 1) == 0 ? -1f : 1f,
+                                        (i & 2) == 0 ? -1f : 1f,
+                                        (i & 4) == 0 ? -1f : 1f);
+
+            Vector3 esquina = local.center + Vector3.Scale(local.extents, signo);
+            Vector3 p = transform.InverseTransformPoint(mf.transform.TransformPoint(esquina));
+
+            if (primero) { fuera = new Bounds(p, Vector3.zero); primero = false; }
+            else fuera.Encapsulate(p);
+        }
+
+        return fuera;
     }
 
     // Masas de peluche de verdad, en kilos. Antes eran 1, 2,5 y 4 kg: eso es lo
