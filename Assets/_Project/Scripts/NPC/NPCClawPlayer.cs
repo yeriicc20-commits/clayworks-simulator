@@ -22,7 +22,11 @@ public class NPCClawPlayer : MonoBehaviour
     [Range(0f, 1f)]
     public float retryChance = 1f / 3f;
 
-    public float modelYawOffset = 180f;
+    [Tooltip("Correccion de giro del modelo al mirar a la maquina. Tiene que "
+             + "ser 0: el resto del script gira con LookRotation a secas y el "
+             + "NPC anda mirando bien, asi que sumarle 180 aqui es lo que le "
+             + "daba la vuelta justo al ponerse a jugar.")]
+    public float modelYawOffset = 0f;
 
     [Header("Visita")]
     public int extraMachineChanceOneIn = 3;

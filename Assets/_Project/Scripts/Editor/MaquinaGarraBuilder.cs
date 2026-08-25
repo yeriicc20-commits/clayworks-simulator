@@ -214,7 +214,7 @@ public static class MaquinaGarraBuilder
 
         GameObject sitioNPC = new GameObject("NPC_MachineSpot");
         sitioNPC.transform.SetParent(raiz.transform, false);
-        sitioNPC.transform.position = new Vector3(todo.center.x, 0f, bordeFrente + frente * 0.55f);
+        sitioNPC.transform.position = new Vector3(todo.center.x, 0f, bordeFrente + frente * 0.42f);
         sitioNPC.transform.rotation = Quaternion.LookRotation(new Vector3(0f, 0f, -frente));
 
         // -------------------------------------------------- cable de la garra
@@ -425,6 +425,12 @@ public static class MaquinaGarraBuilder
         // da al jugador tiempo de ver que va a pasar. A 0,6 m/s parecia un
         // ascensor averiado.
         claw.armMoveSpeed = 0.32f;
+
+        // A que distancia se planta el NPC, medida desde la caja de la maquina.
+        // Los 0,7 de por defecto se cuentan desde la envolvente, que incluye la
+        // consola sobresaliendo 19 cm: el NPC acababa a casi un metro del
+        // cristal, jugando desde la otra punta.
+        claw.npcStandDistance = 0.4f;
         claw.armAcceleration = 1.2f;
         claw.armDeceleration = 2f;
         claw.insideGripHeightOffset = 0.08f;

@@ -86,7 +86,7 @@ MonoBehaviour:
   waitAfterPlaying: 2
   waitBetweenRetries: 1
   retryChance: 0.33333334
-  modelYawOffset: 180
+  modelYawOffset: 0
   extraMachineChanceOneIn: 3
   maxMachinesPerVisit: 3
   prizeVanishDelay: 0.6

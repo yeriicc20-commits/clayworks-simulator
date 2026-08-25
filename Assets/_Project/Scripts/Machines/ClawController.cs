@@ -280,7 +280,10 @@ public class ClawController : MonoBehaviour
         float spotDistance = Vector3.Dot(fromCenter, front);
         float minimumDistance = FrontExtent(front) + npcStandDistance;
 
-        float distance = Mathf.Max(spotDistance + npcStandDistance, minimumDistance);
+        // El sitio marcado ya lleva su separacion incorporada, asi que NO se
+        // le suma otra vez. Sumandola quedaban los dos margenes encadenados y
+        // el NPC acababa a metro y cuarto del cristal, jugando desde lejos.
+        float distance = Mathf.Max(spotDistance, minimumDistance);
 
         Vector3 origin = MachineCenter;
         origin.y = npcSpot.position.y;
