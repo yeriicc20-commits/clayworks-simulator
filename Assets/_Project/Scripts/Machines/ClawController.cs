@@ -315,6 +315,7 @@ public class ClawController : MonoBehaviour
     private Rigidbody carriageRb;
     private Rigidbody armRb;
     private float[] anguloPrevio;
+    private float radioReposo = 0.1f;
     private bool cerrandoMotores = false;
     private ConfigurableJoint cableJoint;
     private Vector3 cableAnchorLocal;
@@ -455,6 +456,12 @@ public class ClawController : MonoBehaviour
         // Aqui y no antes: los motores necesitan los ejes de giro, y esos se
         // acaban de calcular en el bucle de arriba.
         SetUpFingerMotors();
+
+        // El radio con la garra ABIERTA, guardado antes de que se cierre
+        // nada. Leerlo sobre la marcha da el radio de ese momento: con la
+        // garra cerrada son dos centimetros, y con eso ni se busca donde
+        // hay que buscar ni se encuentra lo que se lleva agarrado.
+        radioReposo = Mathf.Max(0.05f, RadioGarra());
 
         AddStaticMachineColliders();
         AddNavObstacle();
@@ -1366,7 +1373,7 @@ public class ClawController : MonoBehaviour
 
         RaycastHit hit;
         bool hay = Physics.SphereCast(hingePoint.position,
-                                      Mathf.Max(0.02f, RadioGarra() * 0.75f),
+                                      Mathf.Max(0.02f, radioReposo * 0.4f),
                                       Vector3.down, out hit, maxDescenso + alcance,
                                       plushLayer, QueryTriggerInteraction.Ignore);
 
@@ -1390,7 +1397,7 @@ public class ClawController : MonoBehaviour
         //
         // El tope de dos tercios del dedo es para que el peluche no le pase de
         // la bisagra: por encima de ella ya no hay brazo que lo abrace.
-        float hundimiento = Mathf.Min(altoPeluche * grabDepth, alcance * 0.8f);
+        float hundimiento = Mathf.Min(altoPeluche * grabDepth, alcance * 0.95f);
 
         float objetivo = Mathf.Max(cima - hundimiento, sueloY + 0.005f);
         float parada = Mathf.Max(armDownY, armBaseLocalPos.y - (puntasY - objetivo));
@@ -1434,10 +1441,11 @@ public class ClawController : MonoBehaviour
     {
         if (hingePoint == null) return null;
 
-        float alcance = Mathf.Max(0.01f, hingePoint.position.y - PuntaMasBaja());
-        float radio = Mathf.Max(0.05f, RadioGarra() * 1.2f);
+        float radio = radioReposo * 1.2f;
 
-        Vector3 centro = hingePoint.position + Vector3.down * (alcance * 0.5f);
+        // Medio dedo por debajo de la bisagra, que es donde queda el peluche
+        // cuando va bien cogido.
+        Vector3 centro = hingePoint.position + Vector3.down * (radioReposo * 0.7f);
 
         Collider[] tocando = Physics.OverlapSphere(centro, radio, plushLayer,
                                                    QueryTriggerInteraction.Ignore);

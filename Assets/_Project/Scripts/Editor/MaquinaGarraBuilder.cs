@@ -400,6 +400,12 @@ public static class MaquinaGarraBuilder
         claw.insideGripRadius = 0.176f;
         claw.toyScatterSpread = 0.85f;
 
+        // Que las puntas acaben POR DEBAJO del centro del peluche. Con 0,6 se
+        // quedaban justo en su ecuador, y como el dedo es un arco, lo que tocaba
+        // la esfera estaba por encima de ese ecuador: apretar ahi no la sujeta,
+        // la escupe hacia abajo. Bajando mas, los ganchos se le meten por debajo.
+        claw.grabDepth = 0.85f;
+
         // Balanceo. Se quedaba con los valores por defecto del codigo, que son
         // 9 grados de inclinacion: casi no se veia. Menos rigidez alarga el
         // periodo y menos amortiguacion hace que tarde en calmarse, que es lo
