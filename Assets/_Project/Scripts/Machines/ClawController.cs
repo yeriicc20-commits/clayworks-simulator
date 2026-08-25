@@ -84,7 +84,7 @@ public class ClawController : MonoBehaviour
     [Tooltip("Cuanto se hunde la garra en el peluche al bajar, como parte de su "
              + "altura. 0,5 deja las puntas a media altura, que es la parte mas "
              + "ancha y de donde mejor se coge. Subirlo hunde mas la garra.")]
-    [Range(0.15f, 1f)] public float grabDepth = 0.5f;
+    [Range(0.15f, 1f)] public float grabDepth = 0.6f;
 
     [HideInInspector] public ClawFingerMotors fingerMotors;
 
@@ -1364,7 +1364,7 @@ public class ClawController : MonoBehaviour
         //
         // El tope de dos tercios del dedo es para que el peluche no le pase de
         // la bisagra: por encima de ella ya no hay brazo que lo abrace.
-        float hundimiento = Mathf.Min(altoPeluche * grabDepth, alcance * 0.66f);
+        float hundimiento = Mathf.Min(altoPeluche * grabDepth, alcance * 0.8f);
 
         float objetivo = Mathf.Max(cima - hundimiento, sueloY + 0.005f);
         float parada = Mathf.Max(armDownY, armBaseLocalPos.y - (puntasY - objetivo));

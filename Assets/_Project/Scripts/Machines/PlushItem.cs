@@ -93,31 +93,47 @@ public class PlushItem : MonoBehaviour
             // Menos de un tercio de la pieza mayor es un adorno.
             if (partes.Count > 1 && b.size.magnitude < mayor * 0.33f) continue;
 
-            BoxCollider box = gameObject.AddComponent<BoxCollider>();
-            box.center = b.center;
-
-            // Encogido a proposito. Un peluche es blando: se aplasta un poco al
-            // apoyarse, y con el collider justo a su silueta se ven separados
-            // por un hueco. Encogerlo les hace parecer que se tocan y se hunden
-            // un poco unos en otros, que es lo que hace un monton de peluches.
-            box.size = b.size * colliderShrink;
-            box.sharedMaterial = physicsMaterial;
-
+            Esfera(b);
             puestos++;
         }
 
-        // Red de seguridad: si el filtro se lo ha comido todo, una caja para
+        // Red de seguridad: si el filtro se lo ha comido todo, una esfera para
         // todo el peluche antes que dejarlo sin collider.
         if (puestos == 0)
         {
             Bounds todo = partes[0];
             for (int i = 1; i < partes.Count; i++) todo.Encapsulate(partes[i]);
 
-            BoxCollider box = gameObject.AddComponent<BoxCollider>();
-            box.center = todo.center;
-            box.size = todo.size * colliderShrink;
-            box.sharedMaterial = physicsMaterial;
+            Esfera(todo);
         }
+    }
+
+    // Una esfera por parte, no una caja.
+    //
+    // Este fue el fallo que dejaba a los peluches separados con aire entre
+    // ellos. Las cajas tenian el tamano correcto, medido, pero un oso no es una
+    // caja: sus esquinas sobresalen unos tres centimetros del pelo por cada
+    // lado. Dos osos se tocaban esquina contra esquina y quedaban separados esa
+    // distancia sin que hubiera nada visible en medio. Y como se apoyaban sobre
+    // esas esquinas, todo el monton quedaba mas alto de lo que parecia.
+    //
+    // Una esfera encaja con la forma de un peluche y ademas rueda por encima de
+    // sus vecinos hasta acomodarse, que es como se amontonan de verdad.
+    void Esfera(Bounds b)
+    {
+        SphereCollider s = gameObject.AddComponent<SphereCollider>();
+        s.center = b.center;
+
+        // El radio sale de la media de los tres semiejes, no del mayor ni del
+        // menor. Del mayor sobresaldria por los lados estrechos, y del menor
+        // quedaria un muneco de trapo dentro de una canica.
+        float medio = (b.extents.x + b.extents.y + b.extents.z) / 3f;
+
+        // Y encogido a proposito. Un peluche es blando: dejandolo justo a su
+        // silueta se ven separados, y encogiendolo se hunden un poco unos en
+        // otros, que es exactamente lo que hace un monton de peluches.
+        s.radius = medio * colliderShrink;
+        s.sharedMaterial = physicsMaterial;
     }
 
     // Caja de una malla en el espacio del peluche, pasando sus ocho esquinas.
