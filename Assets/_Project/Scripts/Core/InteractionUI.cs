@@ -33,6 +33,22 @@ public class InteractionUI : MonoBehaviour
         Instance = this;
     }
 
+    // Atajos que aguantan que todavia no exista.
+    //
+    // El singleton se rellena en Awake, y el orden entre componentes no esta
+    // garantizado: quien pregunte antes se come un NullReference. Estaba
+    // petando en bucle en la maquina de garra. Con esto, el peor caso es que un
+    // aviso no salga durante un fotograma, en vez de una excepcion por frame.
+    public static void Prompt(string texto)
+    {
+        if (Instance != null) Instance.ShowPrompt(texto);
+    }
+
+    public static void Hide()
+    {
+        if (Instance != null) Instance.HidePrompt();
+    }
+
     void Start()
     {
         ApplyStyle();

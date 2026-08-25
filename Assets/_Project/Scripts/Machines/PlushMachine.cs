@@ -22,7 +22,7 @@ public class PlushMachine : MonoBehaviour
         if (other.CompareTag("Player"))
         {
             playerInRange = true;
-            InteractionUI.Instance.ShowPrompt("Pulsa E para jugar (" + cost + "€)");
+            InteractionUI.Prompt("Pulsa E para jugar (" + cost + "€)");
         }
     }
 
@@ -31,7 +31,7 @@ public class PlushMachine : MonoBehaviour
         if (other.CompareTag("Player"))
         {
             playerInRange = false;
-            InteractionUI.Instance.HidePrompt();
+            InteractionUI.Hide();
         }
     }
 

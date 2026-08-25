@@ -68,7 +68,7 @@ public class ClawStrengthDial : MonoBehaviour
             ColocarAguja();
         }
 
-        InteractionUI.Instance.ShowPrompt(string.Format(
+        InteractionUI.Prompt(string.Format(
             "Mando: {0:F0}%   ·   ahora aprieta al {1:F0}% ({2} sin premio)   ·   rueda o flechas",
             motores.ajuste * 100f, motores.FuerzaEfectiva * 100f,
             motores.jugadasSinPremio));
@@ -96,6 +96,6 @@ public class ClawStrengthDial : MonoBehaviour
         if (!other.CompareTag("Player")) return;
 
         cerca = false;
-        InteractionUI.Instance.HidePrompt();
+        InteractionUI.Hide();
     }
 }

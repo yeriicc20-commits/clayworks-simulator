@@ -38,7 +38,7 @@ public class ClawMachineInteraction : MonoBehaviour
         if (!playerInRange) return;
         if (clawController.isControllable || clawController.IsBusy) return;
 
-        InteractionUI.Instance.ShowPrompt(
+        InteractionUI.Prompt(
             "E: jugar (" + GameManager.Format(Price) + ")   ·   " + priceKey + ": cambiar precio");
 
         if (Input.GetKeyDown(KeyCode.E)) TryPay();
@@ -55,7 +55,7 @@ public class ClawMachineInteraction : MonoBehaviour
             return;
         }
 
-        InteractionUI.Instance.HidePrompt();
+        InteractionUI.Hide();
 
         PricePanel.EnsureExists().Open(target);
     }
@@ -74,7 +74,7 @@ public class ClawMachineInteraction : MonoBehaviour
         {
             playerInRange = false;
 
-            InteractionUI.Instance.HidePrompt();
+            InteractionUI.Hide();
         }
     }
 
@@ -88,7 +88,7 @@ public class ClawMachineInteraction : MonoBehaviour
             if (audio3d != null) audio3d.Moneda();
 
             clawController.isControllable = true;
-            InteractionUI.Instance.HidePrompt();
+            InteractionUI.Hide();
         }
         else
         {

@@ -49,24 +49,29 @@ public class ArcadeBlink : MonoBehaviour
 
     void Awake()
     {
-        rend = GetComponent<Renderer>();
-        bloque = new MaterialPropertyBlock();
-        desfase = desfasar ? Random.value : 0f;
+        Preparar();
+    }
+
+    // El estado se monta bajo demanda y no solo en Awake.
+    //
+    // Estaba petando en cada fotograma con "Value cannot be null, parameter
+    // name: dest": Update llegaba a usar el bloque de propiedades antes de que
+    // Awake lo hubiera creado. El orden entre componentes de un mismo objeto no
+    // esta garantizado, asi que no vale con confiar en que Awake vaya primero:
+    // cualquier punto de entrada tiene que poder montarse lo suyo.
+    void Preparar()
+    {
+        if (rend == null) rend = GetComponent<Renderer>();
+        if (bloque == null) bloque = new MaterialPropertyBlock();
+        if (desfase <= 0f) desfase = desfasar ? Random.value : 0f;
     }
 
     void OnEnable()
     {
-        // El material tiene que traer la emision habilitada o el shader ignora
-        // _EmissionColor por mucho que se lo escribamos. Se hace sobre el
-        // material compartido a proposito: es una vez y vale para todas.
-        Material objetivo = MaterialObjetivo();
-
-        if (objetivo != null)
-        {
-            objetivo.EnableKeyword("_EMISSION");
-            objetivo.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
-        }
-
+        // Aqui se tocaba el material COMPARTIDO para encenderle la emision. Dos
+        // problemas: en el editor eso modifica el asset de verdad y lo deja
+        // sucio, y ademas ya no hace falta, porque el constructor crea los
+        // materiales con la emision puesta.
         Aplicar(minimo);
     }
 
@@ -91,6 +96,8 @@ public class ArcadeBlink : MonoBehaviour
 
     void Aplicar(float intensidad)
     {
+        Preparar();
+
         if (rend == null) return;
 
         int i = Indice();
@@ -115,14 +122,4 @@ public class ArcadeBlink : MonoBehaviour
         return materialIndex < mats.Length ? materialIndex : -1;
     }
 
-    Material MaterialObjetivo()
-    {
-        if (rend == null) return null;
-
-        Material[] mats = rend.sharedMaterials;
-        if (mats.Length == 0) return null;
-
-        int i = Indice();
-        return i < 0 ? mats[0] : mats[i];
-    }
 }
