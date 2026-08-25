@@ -1,232 +1,366 @@
 using UnityEngine;
 
-// Orejas que cuelgan y se balancean solas.
+// Orejas que cuelgan, se balancean y se DOBLAN.
 //
-// Va por muelle y no por articulaciones fisicas, y es una decision, no un
-// atajo. Una oreja con Rigidbody colgada del cuerpo del peluche seria un cuerpo
-// dentro de otro cuerpo, que es exactamente lo que dejo la garra dando tumbos
-// durante media sesion: la jerarquia de transforms mueve al hijo por un lado y
-// PhysX lo mueve por otro. Ademas serian dos cuerpos mas por peluche, y en la
-// maquina hay veinte.
+// Antes eran barras rigidas que giraban sobre su costura. Eso hacia bien el
+// balanceo, pero una barra rigida atraviesa todo lo que se le cruce: en la
+// maquina se veian orejas saliendo por debajo del cristal. Y no habia forma de
+// arreglarlo girando, porque el problema no era hacia donde apuntaba la oreja
+// sino que no podia amoldarse a nada.
 //
-// Un muelle por oreja da el mismo resultado a la vista, no puede reventar, y no
-// cuesta nada. La fisica de verdad se reserva para lo que decide el juego: si
-// la garra agarra o no.
+// Asi que la oreja es ahora un cable: una cadena de nudos que cae por su peso,
+// se estira hasta su largo y se aparta de lo que toca. La malla se deforma
+// siguiendo la cadena, con lo que se doble donde se doble el cable, se dobla la
+// oreja.
 //
-// Las orejas salian apuntando al techo, y la razon no era que se movieran mal:
-// en un monton hay peluches que caen BOCA ABAJO, y con el tope viejo en 52
-// grados la oreja no llegaba ni de lejos a volcarse, asi que se quedaba en su
-// postura de reposo, que respecto al mundo es hacia arriba. Una oreja de trapo
-// se vuelca del todo.
-//
-// Subir el tope pedia arreglar antes otras dos cosas, porque tal como estaba se
-// habria puesto a atravesar la cabeza:
-//
-//   - El muelle trabaja sobre la DIRECCION en la que cuelga la oreja y no sobre
-//     dos angulos de Euler sueltos. Con dos angulos por separado el tope no es
-//     un tope: dos limites de 73 grados combinados dejan la oreja a 95 del
-//     sitio. Sobre una direccion el tope es un angulo de verdad.
-//
-//   - Hacia dentro no se va nunca, que es por donde esta el craneo.
-//
-// Lo de restar posiciones dos veces para sacar la aceleracion tampoco estaba
-// bien, y se ha filtrado, pero eso solo valia 13 grados de temblor: molesto, no
-// la causa.
+// Sigue sin haber Rigidbodies ni articulaciones, y sigue siendo a proposito. Una
+// oreja con cuerpo propio colgada del peluche seria un cuerpo dentro de otro
+// cuerpo, que es exactamente lo que dejo la garra dando tumbos durante media
+// sesion. Ademas en la maquina hay veinte peluches: serian cuarenta cuerpos mas.
+// Verlet no puede reventar, no le pide nada a PhysX salvo consultas, y cuando el
+// peluche se duerme deja de costar nada.
 public class OrejasBlandas : MonoBehaviour
 {
     public Transform[] orejas;
 
-    [Header("Muelle")]
-    [Tooltip("Cuanto tiran de volver a su sitio. Mas alto = mas tiesas.")]
-    public float rigidez = 90f;
+    [Header("Cable")]
+    [Tooltip("En cuantos trozos se parte la oreja. Mas = se dobla mas fino.")]
+    public int nudos = 6;
 
-    [Tooltip("Cuanto se les va el balanceo. Mas alto = se paran antes.")]
-    public float amortiguacion = 14f;
+    [Tooltip("Cuanto se corrige el largo en cada pasada, de 0 a 1.")]
+    [Range(0.1f, 1f)] public float rigidez = 0.8f;
 
-    [Tooltip("Cuanto cuenta el movimiento del peluche frente a la gravedad. "
-             + "1 = como algo colgado de verdad. 0 = solo miran a la gravedad.")]
-    public float respuesta = 1f;
+    [Tooltip("Pasadas de correccion por fotograma. Mas = cable menos elastico.")]
+    [Range(1, 8)] public int pasadas = 3;
 
-    [Tooltip("Lo mas que pueden apartarse de su sitio, en grados. Puede ser "
-             + "grande porque hacia dentro no se van nunca: eso lo corta aparte.")]
-    public float anguloMaximo = 80f;
+    [Tooltip("Cuanto conserva el movimiento de un fotograma al siguiente.")]
+    [Range(0.5f, 1f)] public float inercia = 0.92f;
 
-    [Tooltip("Cuanto se diferencia una oreja de la otra. A cero se mueven las "
-             + "dos igual y parece una sola pieza en vez de dos orejas.")]
-    [Range(0f, 0.5f)] public float desigualdad = 0.18f;
+    [Tooltip("Lo mas que puede doblarse en cada nudo. Bajo = oreja mas tiesa.")]
+    public float anguloPorNudo = 34f;
 
-    Quaternion[] reposo;
-    Vector3[] colgado;      // hacia donde apunta cada oreja en reposo
-    Vector3[] direccion;    // hacia donde apunta ahora
-    Vector3[] velocidad;
-    Vector3[] fuera;        // el lado por el que puede irse sin comerse la cabeza
-    float[] dureza;
+    [Tooltip("Grosor del cable para chocar. La mitad del canto de la oreja.")]
+    public float radio = 0.012f;
+
+    [Tooltip("Contra que choca. Los peluches NO van aqui: cada oreja solo mira "
+             + "el escenario y su propio peluche.")]
+    public LayerMask contra = ~0;
+
+    class Cable
+    {
+        public Transform t;
+        public Mesh malla;
+
+        public Vector3[] perp;      // el vertice, apartado del eje
+        public float[] altura;      // donde cae a lo largo de la oreja, de 0 a 1
+        public Vector3[] normal;
+
+        public Vector3[] nudo;
+        public Vector3[] previo;
+        public Vector3[] local;
+        public Quaternion[] marco;
+
+        public Vector3[] vs;
+        public Vector3[] ns;
+
+        public float tramo;
+        public float freno;
+    }
+
+    Cable[] cables;
+    Collider[] propios;
+    readonly Collider[] cerca = new Collider[8];
 
     Vector3 posPrevia;
-    Vector3 velSuave;
-    Vector3 velPrevia;
-    Vector3 acelSuave;
-    bool listo = false;
+    Quaternion rotPrevia;
+    Rigidbody cuerpo;
+    int quieto;
 
     void Start()
     {
         if (orejas == null || orejas.Length == 0) { enabled = false; return; }
 
-        int n = orejas.Length;
+        // El prefab guarda estos numeros dentro, y antes este componente era un
+        // muelle: alli "rigidez" valia 90 y aqui es un factor de 0 a 1. Un
+        // prefab que no se haya rehecho traeria el 90, la correccion de largo se
+        // pasaria noventa veces de rosca y el cable saldria disparado. El
+        // [Range] del inspector no protege de eso, porque solo recorta lo que se
+        // teclea, no lo que se carga.
+        rigidez = Mathf.Clamp(rigidez, 0.1f, 1f);
+        inercia = Mathf.Clamp(inercia, 0.5f, 1f);
+        pasadas = Mathf.Clamp(pasadas, 1, 8);
+        anguloPorNudo = Mathf.Clamp(anguloPorNudo, 5f, 90f);
+        radio = Mathf.Clamp(radio, 0.001f, 0.1f);
 
-        reposo = new Quaternion[n];
-        colgado = new Vector3[n];
-        direccion = new Vector3[n];
-        velocidad = new Vector3[n];
-        fuera = new Vector3[n];
-        dureza = new float[n];
+        cuerpo = GetComponent<Rigidbody>();
+        propios = GetComponentsInChildren<Collider>(true);
 
-        for (int i = 0; i < n; i++)
+        var lista = new System.Collections.Generic.List<Cable>();
+
+        foreach (Transform t in orejas)
         {
-            if (orejas[i] == null) continue;
-
-            reposo[i] = orejas[i].localRotation;
-
-            // Hacia donde cuelga la oreja tal como esta modelada. No se da por
-            // hecho que sea hacia abajo: se saca de su propia orientacion, y
-            // asi vale igual para una oreja que nazca torcida.
-            colgado[i] = (reposo[i] * Vector3.down).normalized;
-            direccion[i] = colgado[i];
-
-            // Por que lado esta cosida. De su posicion, no de su nombre: el FBX
-            // invierte la X al exportar y la oreja que se llama izquierda acaba
-            // a la derecha.
-            float lado = orejas[i].localPosition.x >= 0f ? 1f : -1f;
-            fuera[i] = Vector3.right * lado;
-
-            // Cada oreja con su propia dureza. Sin esto se mueven las dos
-            // exactamente igual y se nota que es un truco.
-            dureza[i] = 1f + Random.Range(-desigualdad, desigualdad);
+            Cable c = Montar(t);
+            if (c != null) lista.Add(c);
         }
 
+        cables = lista.ToArray();
+
+        if (cables.Length == 0) { enabled = false; return; }
+
         posPrevia = transform.position;
-        listo = true;
+        rotPrevia = transform.rotation;
+    }
+
+    Cable Montar(Transform t)
+    {
+        if (t == null) return null;
+
+        MeshFilter mf = t.GetComponent<MeshFilter>();
+
+        if (mf == null || mf.sharedMesh == null)
+        {
+            Debug.LogWarning("[Orejas] " + t.name + " no tiene malla, la dejo quieta.");
+            return null;
+        }
+
+        Cable c = new Cable();
+        c.t = t;
+
+        // Copia propia de la malla: se va a deformar, y la del asset la comparten
+        // todos los peluches de la maquina.
+        c.malla = mf.mesh;
+
+        Vector3[] v = c.malla.vertices;
+        c.normal = c.malla.normals;
+
+        // La oreja esta modelada colgando hacia -Y desde su origen, que es la
+        // costura. El largo es lo que baja.
+        float largo = 0f;
+        foreach (Vector3 p in v) largo = Mathf.Max(largo, -p.y);
+
+        if (largo < 1e-4f)
+        {
+            Debug.LogWarning("[Orejas] " + t.name + " no cuelga hacia -Y, no se de "
+                             + "donde a donde va. La dejo quieta.");
+            return null;
+        }
+
+        int n = Mathf.Max(3, nudos);
+
+        c.perp = new Vector3[v.Length];
+        c.altura = new float[v.Length];
+        c.vs = new Vector3[v.Length];
+        c.ns = new Vector3[v.Length];
+
+        for (int i = 0; i < v.Length; i++)
+        {
+            c.altura[i] = Mathf.Clamp01(-v[i].y / largo);
+            c.perp[i] = new Vector3(v[i].x, 0f, v[i].z);
+        }
+
+        c.tramo = largo / (n - 1);
+        c.nudo = new Vector3[n];
+        c.previo = new Vector3[n];
+        c.local = new Vector3[n];
+        c.marco = new Quaternion[n];
+
+        for (int k = 0; k < n; k++)
+        {
+            c.nudo[k] = t.TransformPoint(new Vector3(0f, -c.tramo * k, 0f));
+            c.previo[k] = c.nudo[k];
+        }
+
+        // Que no se muevan las dos exactamente igual: se nota que es un truco.
+        c.freno = Mathf.Clamp01(inercia * Random.Range(0.96f, 1.0f));
+
+        return c;
     }
 
     void LateUpdate()
     {
-        if (!listo) return;
-
-        float dt = Time.deltaTime;
+        float dt = Mathf.Min(Time.deltaTime, 1f / 30f);
         if (dt <= 0f) return;
 
-        // Como se mueve el peluche. No se le pregunta al Rigidbody a proposito:
-        // asi funciona igual cuando lo lleva la garra, que lo mueve por
-        // transform y no por fisica.
-        //
-        // Pero restar posiciones dos veces amplifica el ruido por 1/dt^2: a 60
-        // fps, un temblor de un milimetro entre fotogramas ya sale como 4 m/s2.
-        // Simulado, un peluche PARADO en el monton meneaba las orejas 13 grados
-        // de puro ruido. Filtrado se queda en 0,1.
-        float suavizado = 1f - Mathf.Exp(-dt * 14f);
+        // Si el peluche esta dormido y el cable ya se ha parado, no hay nada que
+        // recalcular. En un monton de veinte peluches quietos esto es la
+        // diferencia entre costar algo y no costar nada.
+        bool movido = (transform.position - posPrevia).sqrMagnitude > 1e-10f
+                      || Quaternion.Angle(transform.rotation, rotPrevia) > 0.02f;
 
-        Vector3 vel = (transform.position - posPrevia) / dt;
         posPrevia = transform.position;
+        rotPrevia = transform.rotation;
 
-        velSuave = Vector3.Lerp(velSuave, vel, suavizado);
+        if (movido || (cuerpo != null && !cuerpo.IsSleeping())) quieto = 0;
 
-        Vector3 acel = (velSuave - velPrevia) / dt;
-        velPrevia = velSuave;
+        if (quieto > 2) return;
 
-        acelSuave = Vector3.Lerp(acelSuave, acel, suavizado);
+        Vector3 g = Physics.gravity * (dt * dt);
+        float maxAngulo = anguloPorNudo * Mathf.Deg2Rad;
+        float moviendose = 0f;
 
-        // Una oreja no cuelga hacia abajo: cuelga hacia la gravedad APARENTE,
-        // que es la de verdad mas la aceleracion del peluche. Lo mismo que le
-        // pasa a lo que llevas colgado del retrovisor cuando el coche frena.
-        //
-        // Y va normalizada a proposito. Antes se sumaba la aceleracion en bruto,
-        // en m/s2, a un vector unitario y se multiplicaba por el angulo maximo:
-        // mezclar una direccion con una magnitud hace que cualquier empujon
-        // desborde la cuenta y el objetivo se vaya de cabeza al tope. Metida
-        // dentro de la gravedad aparente no puede pasar, porque por mucha
-        // aceleracion que haya una direccion sigue siendo una direccion.
-        Vector3 aparente = Physics.gravity - acelSuave * respuesta;
-
-        if (aparente.sqrMagnitude < 1e-6f) aparente = Vector3.down;
-
-        // Con el peluche tumbado, "abajo" ya no es su abajo: por eso se mira en
-        // SU espacio y no en el del mundo.
-        Vector3 quiere = transform.InverseTransformDirection(aparente.normalized);
-
-        float tope = anguloMaximo * Mathf.Deg2Rad;
-
-        for (int i = 0; i < orejas.Length; i++)
+        foreach (Cable c in cables)
         {
-            if (orejas[i] == null) continue;
+            int n = c.nudo.Length;
 
-            // Hacia dentro no puede irse. Medido girando la oreja alrededor de
-            // su costura y mirando si algun vertice acababa dentro del craneo:
-            // hacia fuera, hacia delante y hacia atras aguanta mas de 120
-            // grados, pero hacia dentro se lo come a los CINCO. Normal, si nace
-            // en el costado. Asi que a la direccion a la que quiere ir se le
-            // quita la parte que apunta al eje del peluche, y lo que le queda es
-            // apoyarse contra la cabeza y resbalar, que es lo que haria.
-            float haciaDentro = Vector3.Dot(quiere, fuera[i]);
+            // La costura no se simula: va donde va el peluche.
+            c.nudo[0] = c.t.position;
+            c.previo[0] = c.nudo[0];
 
-            Vector3 puede = haciaDentro < 0f
-                            ? (quiere - fuera[i] * haciaDentro).normalized
-                            : quiere;
-
-            // Justo boca abajo, donde cuelga y donde querria colgar son
-            // opuestos, y entre dos direcciones opuestas el eje de giro no esta
-            // definido: la oreja se iria por cualquier lado, incluso cruzando la
-            // cabeza. Se la empuja hacia fuera, que es el unico lado libre. El
-            // empujon crece segun se acerca a ese punto ciego, con lo que fuera
-            // de el no desvia nada y dentro elige el camino sin dar tirones.
-            float ciego = Mathf.Clamp01(-Vector3.Dot(puede, colgado[i]));
-            puede = (puede + fuera[i] * (ciego * ciego * 0.35f)).normalized;
-
-            // Es de tela, no de goma: por muy tumbado que este el peluche, la
-            // oreja no puede darse la vuelta entera sobre la costura.
-            Vector3 objetivo = Vector3.RotateTowards(colgado[i], puede, tope, 0f);
-
-            float k = rigidez * dureza[i];
-            Vector3 fuerza = -k * (direccion[i] - objetivo) - amortiguacion * velocidad[i];
-
-            velocidad[i] += fuerza * dt;
-            direccion[i] += velocidad[i] * dt;
-
-            // Red de seguridad: con dt muy grande (una pausa, una carga) el
-            // muelle explota, y un NaN en un Quaternion no se recupera solo.
-            if (!Finito(direccion[i]) || !Finito(velocidad[i])
-                || direccion[i].sqrMagnitude < 1e-8f)
+            for (int k = 1; k < n; k++)
             {
-                direccion[i] = colgado[i];
-                velocidad[i] = Vector3.zero;
+                Vector3 paso = (c.nudo[k] - c.previo[k]) * c.freno;
+                c.previo[k] = c.nudo[k];
+                c.nudo[k] += paso + g;
+
+                moviendose = Mathf.Max(moviendose, paso.sqrMagnitude);
             }
 
-            // El muelle se puede pasar de largo, asi que el tope se vuelve a
-            // aplicar sobre el resultado y no solo sobre el objetivo.
-            direccion[i] = Vector3.RotateTowards(colgado[i], direccion[i].normalized,
-                                                 tope * 1.25f, 0f);
-
-            // Y lo de hacia dentro, tambien sobre el resultado. Cortarlo solo en
-            // el objetivo no basta: el muelle lleva inercia y se pasa. Con la
-            // oreja gorda habia 5 grados de margen antes de tocar el craneo y no
-            // se notaba, pero la oreja cilindrica va tan pegada que el margen es
-            // CERO: se mete en cuanto empieza a girar hacia dentro.
-            float mete = Vector3.Dot(direccion[i], fuera[i]);
-
-            if (mete < 0f)
+            for (int p = 0; p < pasadas; p++)
             {
-                direccion[i] = (direccion[i] - fuera[i] * mete).normalized;
-                velocidad[i] -= fuera[i] * Vector3.Dot(velocidad[i], fuera[i]);
+                // Largo. Solo se mueve el nudo de abajo: el de arriba manda, y
+                // asi la cadena queda mandada desde la costura y no se estira.
+                for (int k = 1; k < n; k++)
+                {
+                    Vector3 d = c.nudo[k] - c.nudo[k - 1];
+                    float len = d.magnitude;
+
+                    if (len > 1e-6f)
+                        c.nudo[k] -= d * ((len - c.tramo) / len * rigidez);
+                }
+
+                // Doblado. Sin esto la oreja se pliega sobre si misma en cuanto
+                // toca algo, y una oreja de trapo rellena no hace eso.
+                for (int k = 2; k < n; k++)
+                {
+                    Vector3 antes = c.nudo[k - 1] - c.nudo[k - 2];
+                    Vector3 ahora = c.nudo[k] - c.nudo[k - 1];
+
+                    if (antes.sqrMagnitude < 1e-10f || ahora.sqrMagnitude < 1e-10f)
+                        continue;
+
+                    Vector3 tope = Vector3.RotateTowards(antes.normalized,
+                                                         ahora.normalized,
+                                                         maxAngulo, 0f);
+
+                    c.nudo[k] = c.nudo[k - 1] + tope * ahora.magnitude;
+                }
             }
 
-            orejas[i].localRotation =
-                Quaternion.FromToRotation(colgado[i], direccion[i]) * reposo[i];
+            // Los choques van una sola vez por fotograma, despues de cuadrar la
+            // forma. Metidos dentro de las pasadas serian tres veces mas
+            // consultas a PhysX por nudo y no se nota la diferencia.
+            for (int k = 1; k < n; k++) Apartar(c, k);
+
+            Deformar(c);
+        }
+
+        quieto = moviendose < 1e-9f ? quieto + 1 : 0;
+    }
+
+    // Saca el nudo de dentro de lo que sea que este tocando.
+    void Apartar(Cable c, int k)
+    {
+        Vector3 p = c.nudo[k];
+
+        Empujar(propios, propios.Length, ref p, c.previo[k]);
+
+        int n = Physics.OverlapSphereNonAlloc(p, radio, cerca, contra,
+                                              QueryTriggerInteraction.Ignore);
+        Empujar(cerca, n, ref p, c.previo[k]);
+
+        c.nudo[k] = p;
+    }
+
+    void Empujar(Collider[] lista, int cuantos, ref Vector3 p, Vector3 venia)
+    {
+        for (int j = 0; j < cuantos; j++)
+        {
+            Collider col = lista[j];
+            if (col == null || !col.enabled || col.isTrigger) continue;
+
+            Vector3 cp = col.ClosestPoint(p);
+            Vector3 d = p - cp;
+            float dist = d.magnitude;
+
+            if (dist > 1e-5f)
+            {
+                // Fuera pero rozando: se separa hasta el grosor del cable.
+                if (dist < radio) p = cp + d * (radio / dist);
+                continue;
+            }
+
+            // ClosestPoint devuelve el mismo punto: esta DENTRO, y entonces no
+            // dice por donde salir. Se sale por donde se entro, que es de donde
+            // venia el nudo el fotograma anterior.
+            Vector3 salida = venia - p;
+
+            if (salida.sqrMagnitude < 1e-10f) salida = p - col.bounds.center;
+            if (salida.sqrMagnitude < 1e-10f) salida = Vector3.up;
+
+            p += salida.normalized * radio;
         }
     }
 
-    static bool Finito(Vector3 v)
+    // Dobla la malla para que siga a la cadena.
+    void Deformar(Cable c)
     {
-        return !float.IsNaN(v.x) && !float.IsInfinity(v.x)
-            && !float.IsNaN(v.y) && !float.IsInfinity(v.y)
-            && !float.IsNaN(v.z) && !float.IsInfinity(v.z);
+        int n = c.nudo.Length;
+
+        for (int k = 0; k < n; k++) c.local[k] = c.t.InverseTransformPoint(c.nudo[k]);
+
+        // Un marco por tramo, encadenados. Se propaga el giro de uno al
+        // siguiente en vez de calcular cada uno por su cuenta: asi la oreja no
+        // se retuerce sobre su eje al doblarse.
+        Quaternion acumulado = Quaternion.identity;
+
+        for (int k = 0; k < n - 1; k++)
+        {
+            Vector3 d = c.local[k + 1] - c.local[k];
+
+            if (d.sqrMagnitude > 1e-10f)
+            {
+                acumulado = Quaternion.FromToRotation(acumulado * Vector3.down,
+                                                      d.normalized) * acumulado;
+            }
+
+            c.marco[k] = acumulado;
+        }
+
+        c.marco[n - 1] = c.marco[n - 2];
+
+        // Y uno por nudo, promediando, para que la curva salga suave y no a
+        // codos entre tramo y tramo.
+        for (int k = n - 2; k >= 1; k--)
+            c.marco[k] = Quaternion.Slerp(c.marco[k - 1], c.marco[k], 0.5f);
+
+        int tramos = n - 1;
+
+        for (int i = 0; i < c.vs.Length; i++)
+        {
+            float r = c.altura[i] * tramos;
+            int k = Mathf.Min((int)r, tramos - 1);
+            float f = r - k;
+
+            Quaternion q = Quaternion.Slerp(c.marco[k], c.marco[k + 1], f);
+
+            c.vs[i] = Vector3.Lerp(c.local[k], c.local[k + 1], f) + q * c.perp[i];
+            c.ns[i] = q * c.normal[i];
+        }
+
+        c.malla.SetVertices(c.vs);
+        c.malla.SetNormals(c.ns);
+        c.malla.RecalculateBounds();
+    }
+
+    void OnDestroy()
+    {
+        if (cables == null) return;
+
+        // La malla es una copia hecha en Start. Si no se destruye, cada peluche
+        // que aparece deja dos sueltas y en una sesion larga se van juntando.
+        foreach (Cable c in cables)
+        {
+            if (c != null && c.malla != null) Destroy(c.malla);
+        }
     }
 }

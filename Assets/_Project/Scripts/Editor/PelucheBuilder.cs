@@ -249,11 +249,23 @@ public static class PelucheBuilder
         // rehacerse. Este builder solo se fija en su propia fecha, con lo que un
         // ajuste en el script de las orejas se quedaba sin aplicar y parecia que
         // no habia servido de nada. Escribiendolos aqui, la fuente es una sola.
-        ob.rigidez = 90f;
-        ob.amortiguacion = 14f;
-        ob.respuesta = 1f;
-        ob.anguloMaximo = 80f;
-        ob.desigualdad = 0.18f;
+        ob.nudos = 6;
+        ob.rigidez = 0.8f;
+        ob.pasadas = 3;
+        ob.inercia = 0.92f;
+        ob.anguloPorNudo = 34f;
+
+        // La mitad del canto de la oreja, que es de 24 mm.
+        ob.radio = 0.012f;
+
+        // El escenario y la maquina, no los peluches. Que las orejas de veinte
+        // peluches se estorben entre ellas serian cientos de consultas por
+        // fotograma para algo que dentro de un monton no se ve.
+        ob.contra = (1 << 0)      // Default
+                  | (1 << 6)      // Obstacle
+                  | (1 << 7)      // Ground
+                  | (1 << 10)     // ClawParts
+                  | (1 << 11);    // MachineShell
     }
 
     static Transform Buscar(Transform raiz, string nombre)
