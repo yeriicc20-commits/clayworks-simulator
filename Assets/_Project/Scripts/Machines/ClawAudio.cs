@@ -27,7 +27,7 @@ public class ClawAudio : MonoBehaviour
     [Tooltip("Volumen de los motores respecto al resto. Van de fondo: son un "
              + "zumbido continuo, y un zumbido continuo cansa mucho antes que "
              + "un golpe suelto al mismo volumen.")]
-    [Range(0f, 1f)] public float volumenMotor = 0.22f;
+    [Range(0f, 1f)] public float volumenMotor = 0.18f;
 
     [Tooltip("El motor del cable, el que sube y baja la garra. Apagado: se "
              + "solapaba con el del carro y con la musica justo en el momento "
