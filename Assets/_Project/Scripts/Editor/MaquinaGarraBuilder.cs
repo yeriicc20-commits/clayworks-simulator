@@ -571,12 +571,6 @@ public static class MaquinaGarraBuilder
         // cerrarse, no un sexto.
         motores.motorSpeed = 100f;
 
-        // Y como el cierre tarda mas, la espera de antes de subir tiene que dar
-        // de si. Del tope abierto al cerrado hay 50,5 grados, que a 100 por
-        // segundo son 0,505 s, y la espera estaba en 0,5: subia justo antes de
-        // acabar de cerrar. Con 0,7 sobra un 39%.
-        claw.closeBeforeLiftDelay = 0.7f;
-
         // Cuanto tiene que haberse cerrado la boca para que cuente como agarre.
         //
         // Se mide la boca y no el angulo de las bisagras. El angulo lleva el
@@ -593,6 +587,20 @@ public static class MaquinaGarraBuilder
         //   limite ........................... 185 mm    18%
         //   cogiendo la cabeza de Panxeta .... 146 mm    35%   <- se acepta
         claw.cierreMinimoParaAgarrar = 0.18f;
+
+        // A partir de aqui, un agarre bien hecho ya no se cae.
+        //
+        // Por debajo todo sigue como estaba: solo rozamiento, y el peluche se
+        // puede escurrir en cualquier momento. Asi el mando de la trasera pasa a
+        // significar algo que se entiende de una sola partida: por abajo hay
+        // loteria, por arriba no. Con el 0,35 por defecto la maquina sigue
+        // siendo igual de tacana que hasta ahora.
+        claw.agarreSeguroDesde = 0.7f;
+
+        // Medio segundo mas de espera con los dedos ya cerrados antes de subir.
+        // Cerrar tarda 0,5 s, asi que ahora se queda abajo apretando otros 0,7:
+        // el momento de "lo tiene o no lo tiene" se ve, en vez de pasar de largo.
+        claw.closeBeforeLiftDelay = 1.2f;
 
         claw.fingerMotors = motores;
 

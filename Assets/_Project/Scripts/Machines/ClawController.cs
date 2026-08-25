@@ -109,6 +109,14 @@ public class ClawController : MonoBehaviour
              + "un solapamiento y parpadea con el balanceo.")]
     public float tiempoParaDarPorPerdido = 0.15f;
 
+    [Header("Agarre firme")]
+    [Tooltip("A partir de que punto del mando, un agarre bien hecho deja de "
+             + "poder escurrirse. Por debajo sigue siendo solo rozamiento y el "
+             + "peluche se puede caer en cualquier momento.")]
+    [Range(0f, 1.01f)] public float agarreSeguroDesde = 0.7f;
+
+    private FixedJoint agarreFirme;
+
     [Tooltip("Cuanto tiene que haberse cerrado la BOCA de la garra respecto a "
              + "como esta en reposo para que cuente como agarre. Con esto en "
              + "cero, un peluche encajado contra la cabeza sube con la garra "
@@ -1293,7 +1301,24 @@ public class ClawController : MonoBehaviour
                 // el numero esta en cierreMinimoParaAgarrar y esta comprobado que
                 // separa los dos casos. Pero primero hay que ver por consola que
                 // la medida dice lo que tiene que decir.
-                if (heldPlushRb != null) CierreSuficiente();
+                // Con el mando alto y el peluche BIEN cogido, el agarre deja de
+                // ser una loteria: se sujeta y no se cae, que es lo que se pidio.
+                //
+                // Por debajo de ese punto del mando todo sigue como estaba, solo
+                // rozamiento, y el peluche se puede escurrir en cualquier momento
+                // hasta que se suelta. Esa es la gracia del mando: no regula
+                // cuanto aprieta, regula si hay loteria o no.
+                //
+                // Y aqui es donde la medida del cierre por fin sirve para algo
+                // util en vez de para castigar: decide que cuenta como "bien
+                // cogido". Si la garra esta practicamente abierta con el peluche
+                // encajado, no se le regala el agarre firme; se queda con el
+                // rozamiento, que es lo que se merece.
+                bool bienCogido = heldPlushRb != null && CierreSuficiente();
+                bool mandoAlto = fingerMotors != null
+                                 && fingerMotors.ajuste >= agarreSeguroDesde;
+
+                if (bienCogido && mandoAlto) SujetarFirme(heldPlushRb);
 
                 jointExistsAfterAttempt = heldPlushRb != null;
 
@@ -1422,6 +1447,10 @@ public class ClawController : MonoBehaviour
 
         // Quien venga en la garra al llegar aqui es el premio, caiga donde caiga.
         PlushItem prize = GetHeldPlush();
+
+        // Lo primero al llegar: soltar el agarre firme. Si se soltara despues
+        // de abrir los dedos, el peluche se quedaria pegado a una garra abierta.
+        SoltarFirme();
 
         if (useRealisticGripPhysics)
         {
@@ -1701,6 +1730,42 @@ public class ClawController : MonoBehaviour
         }
 
         return primero ? parte.bounds : b;
+    }
+
+    // Sujeta el peluche de verdad, sin depender del rozamiento.
+    //
+    // Es una union al brazo, no un cambio de padre ni un peluche cinematico:
+    // asi sigue siendo un cuerpo fisico normal, sigue chocando con los dedos y
+    // con los demas peluches, y se balancea con la garra. Lo unico que no puede
+    // es escurrirse.
+    //
+    // Sin fuerza de rotura a proposito. Una union que se rompe sola es
+    // exactamente la loteria que este agarre viene a quitar, y ya tuvimos esa
+    // version: rompia con el peso del propio peluche una de cada diez veces.
+    void SujetarFirme(Rigidbody peluche)
+    {
+        if (peluche == null || armRb == null || agarreFirme != null) return;
+
+        agarreFirme = peluche.gameObject.AddComponent<FixedJoint>();
+        agarreFirme.connectedBody = armRb;
+        agarreFirme.breakForce = Mathf.Infinity;
+        agarreFirme.breakTorque = Mathf.Infinity;
+
+        // Que siga chocando con los dedos: si se apaga, el peluche los atraviesa
+        // y se ve la garra cerrada por dentro de el.
+        agarreFirme.enableCollision = true;
+
+        Debug.Log("[Garra] Agarre firme sobre " + peluche.name + ": mando al "
+                  + (fingerMotors.ajuste * 100f).ToString("F0") + "%, bien cogido. "
+                  + "Ya no se cae.");
+    }
+
+    void SoltarFirme()
+    {
+        if (agarreFirme == null) return;
+
+        Destroy(agarreFirme);
+        agarreFirme = null;
     }
 
     // Si los brazos han llegado a cerrarse lo bastante como para que cuente.
