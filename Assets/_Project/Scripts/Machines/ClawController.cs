@@ -81,6 +81,11 @@ public class ClawController : MonoBehaviour
              + "garra no agarraba nada. Apagarlo vuelve al sistema viejo.")]
     public bool useMotorFingers = true;
 
+    [Tooltip("Cuanto se hunde la garra en el peluche al bajar, como parte de su "
+             + "altura. 0,5 deja las puntas a media altura, que es la parte mas "
+             + "ancha y de donde mejor se coge. Subirlo hunde mas la garra.")]
+    [Range(0.15f, 1f)] public float grabDepth = 0.5f;
+
     [HideInInspector] public ClawFingerMotors fingerMotors;
 
     [Header("Fisica de agarre realista")]
@@ -309,6 +314,8 @@ public class ClawController : MonoBehaviour
     private Rigidbody clawHeadRb;
     private Rigidbody carriageRb;
     private Rigidbody armRb;
+    private float[] anguloPrevio;
+    private bool cerrandoMotores = false;
     private ConfigurableJoint cableJoint;
     private Vector3 cableAnchorLocal;
     private float cableBaseLength;
@@ -379,6 +386,7 @@ public class ClawController : MonoBehaviour
         SetUpCable();
 
         currentFingerAngle = new float[fingers.Length];
+        anguloPrevio = new float[fingers.Length];
         fingerRotationAxis = new Vector3[fingers.Length];
         fingerStopped = new bool[fingers.Length];
         fingerTouchedCollider = new Collider[fingers.Length];
@@ -668,8 +676,27 @@ public class ClawController : MonoBehaviour
         // en cuanto la rutina dejase de subirlo y no apretaria nada.
         if (ConMotores)
         {
-            if (Mathf.Abs(currentFingerAngle[i]) < 1f) fingerMotors.Abrir();
-            else fingerMotors.Cerrar(fingerMotors.ParActual);
+            // Abrir o cerrar se decide por HACIA DONDE va el angulo, no por
+            // cuanto vale.
+            //
+            // Mirando solo el valor, durante toda la rampa de apertura el
+            // angulo sigue siendo grande y el motor seguia recibiendo la orden
+            // de apretar. Los dedos no se abrian hasta el ultimo grado, o sea
+            // casi dos segundos tarde, y si la rutina se cortaba antes se
+            // quedaban cerrados hasta la partida siguiente.
+            float previo = anguloPrevio[i];
+            anguloPrevio[i] = currentFingerAngle[i];
+
+            if (Mathf.Abs(currentFingerAngle[i] - previo) > 0.001f)
+            {
+                cerrandoMotores = Mathf.Abs(currentFingerAngle[i]) > Mathf.Abs(previo);
+            }
+
+            // Y con el objetivo en el reposo, abierta sin discusion.
+            if (Mathf.Abs(currentFingerAngle[i]) < 1f) cerrandoMotores = false;
+
+            if (cerrandoMotores) fingerMotors.Cerrar(fingerMotors.ParActual);
+            else fingerMotors.Abrir();
 
             return;
         }
@@ -1325,27 +1352,27 @@ public class ClawController : MonoBehaviour
 
         intendedTargetRb = hit.collider.attachedRigidbody;
 
-        // Baja hasta el fondo: el peluche entra entero entre los brazos y topa
-        // con la carcasa de la garra. Como la bisagra esta justo en la base de
-        // la carcasa, "que el peluche toque la cabeza" es literalmente bajar
-        // hasta que la BISAGRA llegue a la cima del peluche.
-        //
-        // Aqui esta el arreglo de "se queda a mucha distancia": antes se paraba
-        // dejando las puntas a media altura del peluche, o sea con la bisagra
-        // todavia un dedo entero por encima de el.
-        //
-        // No se baja mas alla de esa cima aunque quede recorrido. Si se bajase,
-        // la carcasa, que va por transform y no cede, empujaria el peluche
-        // contra el suelo hasta atravesarlo.
         float cima = hit.collider.bounds.max.y;
-        float hingeY = hingePoint.position.y;
+        float altoPeluche = hit.collider.bounds.size.y;
 
-        float parada = Mathf.Max(armDownY, armBaseLocalPos.y - (hingeY - cima));
+        // Cuanto se hunde la garra en el peluche, medido para las PUNTAS.
+        //
+        // Se probo a bajar hasta que la carcasa tocase el peluche y quedaba
+        // peor: la carcasa va por transform y no cede, asi que al llegar abajo
+        // empuja al peluche en vez de posarse sobre el. Media altura deja las
+        // puntas justo en la parte mas ancha, que es de donde hay que cogerlo.
+        //
+        // El tope de dos tercios del dedo es para que el peluche no le pase de
+        // la bisagra: por encima de ella ya no hay brazo que lo abrace.
+        float hundimiento = Mathf.Min(altoPeluche * grabDepth, alcance * 0.66f);
+
+        float objetivo = Mathf.Max(cima - hundimiento, sueloY + 0.005f);
+        float parada = Mathf.Max(armDownY, armBaseLocalPos.y - (puntasY - objetivo));
 
         Debug.Log(string.Format(
-            "[Garra] Bajada sobre {0}: cima={1:F3}, bisagra baja de {2:F3} a {3:F3} "
-            + "(tope {4:F3}, suelo {5:F3})",
-            hit.collider.name, cima, hingeY, cima, armDownY, sueloY));
+            "[Garra] Bajada sobre {0}: cima={1:F3} alto={2:F3} hundimiento={3:F3} "
+            + "puntas acaban en {4:F3} (tope {5:F3}, suelo {6:F3})",
+            hit.collider.name, cima, altoPeluche, hundimiento, objetivo, armDownY, sueloY));
 
         return parada;
     }
