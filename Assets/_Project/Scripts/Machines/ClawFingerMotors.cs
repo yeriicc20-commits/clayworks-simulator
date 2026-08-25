@@ -37,8 +37,12 @@ public class ClawFingerMotors : MonoBehaviour
     [Tooltip("Angulo con la garra cerrada del todo, en grados. Negativo cierra.")]
     public float closedAngle = -36.5f;
 
-    [Tooltip("A que velocidad gira el motor mientras no encuentra resistencia.")]
-    public float motorSpeed = 200f;
+    [Tooltip("A que velocidad gira el motor mientras no encuentra resistencia, "
+             + "en grados por segundo. No subirlo sin rehacer la cuenta: un dedo "
+             + "que avanza mas que el margen de contacto en un solo paso de "
+             + "fisica se mete dentro de lo que toque antes de que nadie lo "
+             + "detecte.")]
+    public float motorSpeed = 100f;
 
     [Tooltip("Cuantos grados MAS del reposo puede abrirse un brazo al posarse "
              + "sobre algo. Es lo que le permite ceder y resbalar alrededor de "
@@ -168,6 +172,15 @@ public class ClawFingerMotors : MonoBehaviour
             // Sin esto, un dedo que quede pillado contra el cristal sale
             // disparado al liberarse.
             rb.maxDepenetrationVelocity = 0.4f;
+
+            // Muchas mas pasadas del solver que las 10 de la configuracion
+            // global. El motor de la bisagra y el contacto contra el peluche se
+            // resuelven en el mismo sitio, y con pocas pasadas gana el motor:
+            // el dedo se mete dentro del peluche en vez de empujarlo. Al subir
+            // el par eso paso de no verse a verse. Son tres dedos: pagar
+            // pasadas de solver aqui no cuesta practicamente nada.
+            rb.solverIterations = 32;
+            rb.solverVelocityIterations = 12;
 
             rb.linearDamping = 0.05f;
             rb.angularDamping = 1.5f;

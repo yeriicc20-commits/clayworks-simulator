@@ -34,7 +34,25 @@ public class PlushItem : MonoBehaviour
         if (rb != null)
         {
             rb.mass = GetWeightValue();
-            rb.maxDepenetrationVelocity = 0.15f;
+
+            // A cuanto puede salir de dentro de otra cosa cuando ya esta metido.
+            //
+            // Estaba en 0,15 m/s para que dos peluches que aparecen solapados no
+            // salieran disparados. Pero eso es 67 ms para deshacer un centimetro,
+            // y mientras tanto el motor de la garra sigue empujando: el dedo se
+            // hunde mas rapido de lo que el peluche puede salir, y se ve el dedo
+            // metido dentro. A 0,5 el centimetro se deshace en 20 ms, que a la
+            // vista es al momento, y sigue siendo un empujon suave.
+            rb.maxDepenetrationVelocity = 0.5f;
+
+            // Mas pasadas del solver que las 10 de la configuracion global.
+            //
+            // Un motor de articulacion y un contacto se resuelven en el mismo
+            // solver, y con pocas pasadas el motor gana: por eso al subir el par
+            // los dedos empezaron a meterse dentro. No es que sobre fuerza, es
+            // que faltaban pasadas para repartirla.
+            rb.solverIterations = 20;
+            rb.solverVelocityIterations = 8;
 
             // Un peluche apoyado tiene que quedarse quieto. Sin amortiguamiento
             // se pasa segundos deslizandose y rodando, y ademas tarda mucho mas

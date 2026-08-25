@@ -511,6 +511,25 @@ public static class MaquinaGarraBuilder
         motores.torqueMax = 0.85f;
         motores.mandoFirme = 0.8f;
 
+        // Y la velocidad de cierre sale de otra cuenta, la del paso de fisica.
+        //
+        // El contacto se genera con 10 mm de margen y el paso dura 16,7 ms, asi
+        // que la punta no puede avanzar mas de esos 10 mm en un paso o se mete
+        // dentro del peluche antes de que haya contacto que resolver. Con 186 mm
+        // de brazo eso son 185 grados por segundo COMO TOPE, y estaba en 200:
+        // por encima del limite, aunque solo fuera un poco.
+        //
+        // Se baja a 100, que deja el avance en 5,4 mm, la mitad del margen. Y de
+        // paso es mas creible: una garra de verdad tarda un tercio de segundo en
+        // cerrarse, no un sexto.
+        motores.motorSpeed = 100f;
+
+        // Y como el cierre tarda mas, la espera de antes de subir tiene que dar
+        // de si. Del tope abierto al cerrado hay 50,5 grados, que a 100 por
+        // segundo son 0,505 s, y la espera estaba en 0,5: subia justo antes de
+        // acabar de cerrar. Con 0,7 sobra un 39%.
+        claw.closeBeforeLiftDelay = 0.7f;
+
         claw.fingerMotors = motores;
 
         if (agarre == null)
