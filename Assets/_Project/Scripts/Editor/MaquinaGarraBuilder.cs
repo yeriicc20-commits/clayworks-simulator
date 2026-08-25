@@ -582,6 +582,28 @@ public static class MaquinaGarraBuilder
         // prefab guarda los numeros dentro: cambiarlo en ClawAudio.cs no tocaria
         // el prefab que ya existe y pareceria que el ajuste no sirve.
         audio3d.volumenMotor = 0.20f;
+
+        // Hasta donde llega cada cosa.
+        //
+        // Iba todo a 14 m con caida lineal, y en linea recta a mitad de camino
+        // todavia se oye al 50%: con varias maquinas y los npc jugando sin parar
+        // no habia forma de salirse del ruido, siempre estabas dentro de alguna.
+        //
+        // Lo que suena SIN PARAR (motor y musica) se corta a 6 m, que es un par
+        // de pasos. Los sonidos sueltos llegan a 11 porque duran un segundo y
+        // enterarse de que a alguien le ha tocado un premio desde el otro lado
+        // del local es parte de la gracia.
+        audio3d.distanciaMinima = 1.8f;
+        audio3d.distanciaMaxima = 11f;
+        audio3d.distanciaContinua = 6f;
+
+        // Girar la garra sobre su eje mientras se juega y mientras baja.
+        claw.permitirGiro = true;
+        claw.giroIzquierda = KeyCode.U;
+        claw.giroDerecha = KeyCode.O;
+        claw.velocidadGiro = 95f;
+        claw.giroMaximo = 170f;
+        claw.suavizadoGiro = 7f;
         audio3d.musica      = Sonido("Musica_Arcade");
 
         claw.audio3d = audio3d;

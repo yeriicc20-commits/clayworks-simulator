@@ -114,6 +114,34 @@ public class ClawController : MonoBehaviour
              + "encajado contra la cabeza sube con la garra abierta.")]
     [Range(0f, 0.8f)] public float cierreMinimoParaAgarrar = 0.25f;
 
+    [Header("Girar la garra")]
+    [Tooltip("Deja girar la garra sobre su eje mientras se juega y mientras "
+             + "baja.")]
+    public bool permitirGiro = true;
+
+    public KeyCode giroIzquierda = KeyCode.U;
+    public KeyCode giroDerecha = KeyCode.O;
+
+    [Tooltip("Grados por segundo.")]
+    public float velocidadGiro = 95f;
+
+    [Tooltip("Lo maximo que puede girar hacia cada lado. No es infinito porque "
+             + "la garra cuelga de un cable: dar vueltas sin fin no lo hace "
+             + "ninguna maquina de verdad.")]
+    public float giroMaximo = 170f;
+
+    [Tooltip("Lo que tarda en alcanzar el giro pedido. Sin esto arranca y para "
+             + "en seco, y una cabeza de acero colgando de un cable no hace eso.")]
+    public float suavizadoGiro = 7f;
+
+    private float giroPedido = 0f;
+    private float giroActual = 0f;
+
+    // Verdadero mientras el brazo esta bajando. El giro sigue estando permitido
+    // aqui aunque isControllable ya sea falso: se pidio poder girarla al bajar,
+    // que es justo cuando dejas de tener el mando de los raies.
+    private bool bajando = false;
+
     public float slipExtraCloseAngle = 15f;
     public float slipCloseSpeed = 40f;
 
@@ -590,6 +618,35 @@ public class ClawController : MonoBehaviour
             StartCoroutine(GrabSequence());
         }
 
+        LeerGiro();
+    }
+
+    // El giro se lee en Update y se aplica en el paso de fisica, igual que todo
+    // lo demas que mueve el brazo.
+    void LeerGiro()
+    {
+        if (!permitirGiro) return;
+
+        // Si esta jugando un npc, el mando no es del jugador. Sin esto, estando
+        // cerca de una maquina ocupada se le podia girar la garra a un npc en
+        // plena bajada solo con rozar la tecla.
+        if (IsNPCTurn) return;
+
+        // Mientras se coloca la garra Y mientras baja. Despues no: girar con el
+        // peluche ya cogido lo escurriria, y eso no seria una habilidad, seria
+        // que el jugador no puede evitar tocar la tecla.
+        bool puede = (isControllable && !isBusy) || bajando;
+
+        if (!puede) return;
+
+        float lado = 0f;
+        if (Input.GetKey(giroDerecha)) lado += 1f;
+        if (Input.GetKey(giroIzquierda)) lado -= 1f;
+
+        if (Mathf.Abs(lado) < 0.01f) return;
+
+        giroPedido = Mathf.Clamp(giroPedido + lado * velocidadGiro * Time.deltaTime,
+                                 -giroMaximo, giroMaximo);
     }
 
     // El carro empuja peluches, asi que su movimiento pertenece al paso de
@@ -804,7 +861,18 @@ public class ClawController : MonoBehaviour
         tiltX = Mathf.Clamp(tiltX, -swingMaxTiltAngle * 2f, swingMaxTiltAngle * 2f);
         tiltZ = Mathf.Clamp(tiltZ, -swingMaxTiltAngle * 2f, swingMaxTiltAngle * 2f);
 
+        // El giro va POR DENTRO del balanceo, no por fuera: primero la garra
+        // gira sobre su propio eje y luego todo el conjunto se inclina. Al
+        // reves, el giro tumbaria el eje de inclinacion y la garra cabecearia
+        // hacia donde no toca.
+        //
+        // Y no entra en el calculo de la posicion de abajo a proposito: girar
+        // sobre el eje del cable no mueve la garra de sitio, solo la orienta.
+        giroActual = Mathf.Lerp(giroActual, giroPedido,
+                                1f - Mathf.Exp(-dt * suavizadoGiro));
+
         Quaternion swingRotation = Quaternion.Euler(tiltX, 0f, tiltZ);
+        Quaternion conGiro = swingRotation * Quaternion.Euler(0f, giroActual, 0f);
 
         Vector3 destino = armBaseLocalPos;
 
@@ -814,7 +882,7 @@ public class ClawController : MonoBehaviour
             destino = anchorLocalPos + swingRotation * (armBaseLocalPos - anchorLocalPos);
         }
 
-        ColocarBrazo(destino, swingRotation);
+        ColocarBrazo(destino, conGiro);
     }
 
     // Coloca el brazo. Si tiene cuerpo cinematico, se le PIDE el movimiento en
@@ -1137,7 +1205,9 @@ public class ClawController : MonoBehaviour
             audio3d.Alarma(true);
         }
 
+        bajando = true;
         yield return MoveArmDownUntilPlushContact();
+        bajando = false;
 
         if (audio3d != null) audio3d.Alarma(false);
 
@@ -1326,6 +1396,10 @@ public class ClawController : MonoBehaviour
         yield return MoveRailsTo(new Vector3(startPosX, railZ.localPosition.y, startPosZ), prizeTravelSpeed);
 
         if (audio3d != null) audio3d.MotorCable(false);
+
+        // El giro vuelve a cero para la siguiente partida. Si se quedara donde
+        // se dejo, la garra empezaria torcida sin que nadie la hubiera tocado.
+        giroPedido = 0f;
 
         isBusy = false;
         isControllable = false;

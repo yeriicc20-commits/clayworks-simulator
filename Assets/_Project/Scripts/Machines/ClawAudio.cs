@@ -48,10 +48,17 @@ public class ClawAudio : MonoBehaviour
     [Range(0f, 1f)] public float volumen = 0.8f;
 
     [Tooltip("A partir de aqui empieza a bajar con la distancia.")]
-    public float distanciaMinima = 2f;
+    public float distanciaMinima = 1.8f;
 
-    [Tooltip("Mas lejos de esto ya no se oye.")]
-    public float distanciaMaxima = 14f;
+    [Tooltip("Mas lejos de esto ya no se oye un sonido suelto: la moneda, el "
+             + "premio, el fallo. Duran poco, asi que pueden llegar mas lejos.")]
+    public float distanciaMaxima = 11f;
+
+    [Tooltip("Lo mismo para lo que suena SIN PARAR: el motor y la musica. Mucho "
+             + "mas corto a proposito. Son los npc jugando todo el rato, y si "
+             + "llegan lejos el local entero acaba lleno de musica de "
+             + "recreativa.")]
+    public float distanciaContinua = 6f;
 
     AudioSource sueltos;
     AudioSource bucle;
@@ -79,16 +86,16 @@ public class ClawAudio : MonoBehaviour
 
     void Awake()
     {
-        sueltos = Crear("Audio_Sueltos", false);
-        bucle = Crear("Audio_Motor", true);
+        sueltos = Crear("Audio_Sueltos", false, distanciaMaxima);
+        bucle = Crear("Audio_Motor", true, distanciaContinua);
 
         // Tercera fuente para la musica: si compartiese la de los motores, el
         // zumbido del carro la cortaria en seco cada vez que te mueves.
-        musical = Crear("Audio_Musica", true);
+        musical = Crear("Audio_Musica", true, distanciaContinua);
         musical.volume = volumenMusica;
     }
 
-    AudioSource Crear(string nombre, bool enBucle)
+    AudioSource Crear(string nombre, bool enBucle, float lejos)
     {
         GameObject go = new GameObject(nombre);
         go.transform.SetParent(transform, false);
@@ -100,11 +107,56 @@ public class ClawAudio : MonoBehaviour
 
         // 3D del todo. A 0 sonaria igual de fuerte desde la otra punta del local.
         a.spatialBlend = 1f;
-        a.rolloffMode = AudioRolloffMode.Linear;
-        a.minDistance = distanciaMinima;
-        a.maxDistance = distanciaMaxima;
+        float cerca = Mathf.Min(distanciaMinima, lejos * 0.4f);
+
+        a.maxDistance = lejos;
+        a.minDistance = cerca;
+        a.rolloffMode = AudioRolloffMode.Custom;
+        a.SetCustomCurve(AudioSourceCurveType.CustomRolloff, Caida(cerca, lejos));
 
         return a;
+    }
+
+    // Como baja el volumen con la distancia.
+    //
+    // Iba en linea recta, que es lo que trae Unity por defecto, y eso es lo que
+    // hacia que no hubiera forma de escaparse del ruido: en linea recta, a mitad
+    // de camino del corte todavia se oye al 50%. Con una maquina sola se
+    // aguanta; con varias y los npc echando partidas sin parar, el local entero
+    // queda cubierto y siempre estas dentro de alguna.
+    //
+    // El sonido de verdad no baja en linea recta, baja con el cuadrado de la
+    // distancia: a mitad de camino ya va por menos de la cuarta parte. Esta
+    // curva imita eso y ademas llega a cero de verdad en el corte, para que no
+    // se oiga el salto al cruzar el limite.
+    //
+    // La curva va en distancia NORMALIZADA de 0 a 1, donde el 1 es maxDistance:
+    // es lo que espera SetCustomCurve.
+    //
+    // Y la meseta del principio tiene que ir DENTRO de la curva. Con rolloff
+    // personalizado, minDistance deja de recortar nada: manda la curva y solo la
+    // curva. Sin la meseta, la primera version bajaba al 27% estando pegado a la
+    // maquina, o sea que dejaba de oirse justo donde tiene que oirse.
+    static AnimationCurve Caida(float cerca, float lejos)
+    {
+        float meseta = Mathf.Clamp01(cerca / Mathf.Max(0.01f, lejos));
+
+        AnimationCurve c = new AnimationCurve(
+            new Keyframe(0f, 1f),
+            new Keyframe(meseta, 1f),
+            new Keyframe(Mathf.Lerp(meseta, 1f, 0.22f), 0.42f),
+            new Keyframe(Mathf.Lerp(meseta, 1f, 0.45f), 0.15f),
+            new Keyframe(Mathf.Lerp(meseta, 1f, 0.72f), 0.04f),
+            new Keyframe(1f, 0f));
+
+        // La meseta se deja recta: suavizandola tambien, la curva se pasa por
+        // encima de 1 y el sonido saldria mas fuerte de lo que le toca.
+        for (int i = 2; i < c.length; i++)
+        {
+            c.SmoothTangents(i, 0f);
+        }
+
+        return c;
     }
 
     // ---------------------------------------------------------------- disparos
