@@ -3691,6 +3691,7 @@ GameObject:
   - component: {fileID: 7836917966379200418}
   - component: {fileID: 3621684585994608460}
   - component: {fileID: 9159380809835664535}
+  - component: {fileID: 3776847804154158901}
   - component: {fileID: 1328037369489726115}
   - component: {fileID: 1343609594565584737}
   - component: {fileID: 6591496569240784634}
@@ -3843,7 +3844,7 @@ MonoBehaviour:
   useMotorFingers: 1
   grabDepth: 0.85
   fingerMotors: {fileID: 3621684585994608460}
-  audio3d: {fileID: 0}
+  audio3d: {fileID: 3776847804154158901}
   useRealisticGripPhysics: 1
   gripForcePlayerMin: 1
   gripForcePlayerMax: 10
@@ -3883,6 +3884,33 @@ MonoBehaviour:
   npcQueueSpacing: 0.8
   currentNPCUser: {fileID: 0}
   toySpawnPoint: {fileID: 1230952011468637987}
+--- !u!114 &3776847804154158901
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3201313670744872988}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5e6303490762dd44d85e33ce875c0bcd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ClawAudio
+  moneda: {fileID: 8300000, guid: ed7d1343a86dbf44383d6ba6cf6e99c3, type: 3}
+  boton: {fileID: 8300000, guid: 8565e101f91f8704fafb6114b1be0d92, type: 3}
+  garraCierra: {fileID: 8300000, guid: 2dc5a4a33b5e00044bfeda712f44ea00, type: 3}
+  garraAbre: {fileID: 8300000, guid: 35636fff0949f2246bd02ee271d134e7, type: 3}
+  premio: {fileID: 8300000, guid: 3e1494dad82ff904caf916c9b4fc3378, type: 3}
+  fallo: {fileID: 8300000, guid: c4f74005feeb33c4f81775f0a09db478, type: 3}
+  pelucheCae: {fileID: 8300000, guid: 47aa7d6543c771b45a401f20472a8e0a, type: 3}
+  tope: {fileID: 8300000, guid: a818820b9995cdd40b43a2c289d69ff4, type: 3}
+  motorCarro: {fileID: 8300000, guid: d8cfd52c160aca34faf02c3ea09bb376, type: 3}
+  motorCable: {fileID: 8300000, guid: d37866a8283ee7d42bbca542b7f91964, type: 3}
+  musica: {fileID: 8300000, guid: 6debb3bdab9b2734e9605fd892865aab, type: 3}
+  volumenMusica: 0.45
+  volumen: 0.8
+  distanciaMinima: 2
+  distanciaMaxima: 14
 --- !u!114 &1328037369489726115
 MonoBehaviour:
   m_ObjectHideFlags: 0

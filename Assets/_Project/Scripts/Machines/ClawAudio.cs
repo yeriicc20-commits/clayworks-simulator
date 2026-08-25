@@ -24,12 +24,23 @@ public class ClawAudio : MonoBehaviour
     public AudioClip motorCarro;
     public AudioClip motorCable;
 
+    [Tooltip("Volumen de los motores respecto al resto. Van de fondo: son un "
+             + "zumbido continuo, y un zumbido continuo cansa mucho antes que "
+             + "un golpe suelto al mismo volumen.")]
+    [Range(0f, 1f)] public float volumenMotor = 0.22f;
+
+    [Tooltip("El motor del cable, el que sube y baja la garra. Apagado: se "
+             + "solapaba con el del carro y con la musica justo en el momento "
+             + "de mas tension, y no aportaba nada. El sonido sigue ahi por si "
+             + "algun dia se quiere recuperar.")]
+    public bool motorCableAudible = false;
+
     [Header("Musica")]
     [Tooltip("Suena mientras hay partida en marcha, no todo el rato: una sala "
              + "con seis maquinas sonando a la vez es ruido, no ambiente.")]
     public AudioClip musica;
 
-    [Range(0f, 1f)] public float volumenMusica = 0.45f;
+    [Range(0f, 1f)] public float volumenMusica = 0.26f;
 
     [Header("Mezcla")]
     [Range(0f, 1f)] public float volumen = 0.8f;
@@ -97,7 +108,10 @@ public class ClawAudio : MonoBehaviour
     // ----------------------------------------------------------------- motores
 
     public void MotorCarro(bool encendido) { Motor(encendido ? motorCarro : null); }
-    public void MotorCable(bool encendido) { Motor(encendido ? motorCable : null); }
+    public void MotorCable(bool encendido)
+    {
+        Motor(encendido && motorCableAudible ? motorCable : null);
+    }
 
     // ----------------------------------------------------------------- musica
 
@@ -133,7 +147,7 @@ public class ClawAudio : MonoBehaviour
         if (bucle.clip == clip && bucle.isPlaying) return;
 
         bucle.clip = clip;
-        bucle.volume = volumen * 0.55f;
+        bucle.volume = volumen * volumenMotor;
         bucle.Play();
     }
 }
