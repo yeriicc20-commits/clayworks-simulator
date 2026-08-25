@@ -34,6 +34,19 @@ COLORES = {
 }
 
 
+PERFIL_CUERPO = [
+    (0.000, 0.000), (0.030, 0.005), (0.048, 0.015), (0.059, 0.029),
+    (0.065, 0.046), (0.066, 0.062), (0.063, 0.078), (0.056, 0.094),
+    (0.045, 0.109), (0.034, 0.121), (0.026, 0.130), (0.000, 0.136),
+]
+
+PERFIL_CABEZA = [
+    (0.000, -0.078), (0.030, -0.073), (0.052, -0.061), (0.068, -0.043),
+    (0.077, -0.021), (0.080, 0.003), (0.077, 0.027), (0.068, 0.049),
+    (0.051, 0.066), (0.029, 0.076), (0.000, 0.080),
+]
+
+
 def limpiar():
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
@@ -122,6 +135,90 @@ def torneado(nombre, perfil, mat, centro=(0.0, 0.0, 0.0), aplanado=1.0,
         for k in range(segmentos):
             k2 = (k + 1) % segmentos
             faces.append([a0 + k, a0 + k2, a1 + k2, a1 + k])
+
+    return malla(nombre, verts, faces, mat)
+
+
+def parche(nombre, perfil, centro, aplanado, mat, z0, z1, ang, abertura,
+           sep=0.0009, grosor=0.0016, filas=12, columnas=16):
+    """Una MANCHA sobre la superficie, no un bulto pegado encima.
+
+    Antes las manchas eran esferas aplastadas puestas sobre la cabeza, y se
+    veian como lo que eran: pegotes que sobresalen. Una mancha de un peluche
+    es tela de otro color cosida al patron: sigue la curva exacta de la
+    pieza y no abulta.
+
+    Asi que se genera a partir del MISMO perfil que la pieza sobre la que
+    va, muestreando su superficie en una ventana de alturas y angulos, y
+    separandola menos de un milimetro para que se dibuje por delante.
+
+    La ventana se estrecha por arriba y por abajo, con lo que la mancha sale
+    ovalada en vez de un rectangulo pegado.
+    """
+    def radio(z):
+        zl = z - centro[2]
+
+        if zl <= perfil[0][1] or zl >= perfil[-1][1]:
+            return 0.0
+
+        for i in range(len(perfil) - 1):
+            r0, za = perfil[i]
+            r1, zb = perfil[i + 1]
+
+            if za <= zl <= zb:
+                t = (zl - za) / max(1e-6, zb - za)
+                return r0 + (r1 - r0) * t
+
+        return 0.0
+
+    verts, faces = [], []
+
+    for fuera in (grosor, 0.0):
+        for i in range(filas + 1):
+            u = i / filas
+            z = z0 + (z1 - z0) * u
+
+            # Elipse, no seno. Con seno los extremos se cierran en punta y la
+            # mancha sale con forma de rombo; con la raiz el borde llega
+            # perpendicular y queda redondo.
+            forma = math.sqrt(max(0.0, 1.0 - (2.0 * u - 1.0) ** 2))
+            media = abertura * max(0.06, forma)
+
+            r = radio(z) + sep + fuera
+
+            for k in range(columnas + 1):
+                a = ang - media + 2.0 * media * k / columnas
+                verts.append((math.cos(a) * r + centro[0],
+                              math.sin(a) * r * aplanado + centro[1],
+                              z + centro[2] * 0.0 + Z0))
+
+    porCapa = (filas + 1) * (columnas + 1)
+
+    for capa in (0, 1):
+        base = capa * porCapa
+        for i in range(filas):
+            for k in range(columnas):
+                a0 = base + i * (columnas + 1) + k
+                a1 = a0 + 1
+                b0 = a0 + (columnas + 1)
+                b1 = b0 + 1
+
+                if capa == 0:
+                    faces.append([a0, a1, b1, b0])
+                else:
+                    faces.append([a0, b0, b1, a1])
+
+    # El canto, para que no se vea una lamina de papel por el borde
+    for i in range(filas):
+        for lado in (0, columnas):
+            a0 = i * (columnas + 1) + lado
+            b0 = a0 + (columnas + 1)
+            faces.append([a0, b0, b0 + porCapa, a0 + porCapa])
+
+    for k in range(columnas):
+        for fila in (0, filas):
+            a0 = fila * (columnas + 1) + k
+            faces.append([a0, a0 + 1, a0 + 1 + porCapa, a0 + porCapa])
 
     return malla(nombre, verts, faces, mat)
 
@@ -268,16 +365,18 @@ def oreja(nombre, sx, mat, ancho=0.058, grosor=0.017):
 
 def sonrisa(nombre, mat):
     """La boca: un hilo. En la foto es una costura fina y ancha."""
+    # Ancha y poco honda. Antes abarcaba 116 grados y bajaba mucho: salia una U
+    # en vez de una sonrisa.
     radio = 0.036
-    grosor = 0.0016
-    centro = Vector((0.0, -0.072, 0.192 + Z0))
+    grosor = 0.0018
+    centro = Vector((0.0, -0.074, 0.178 + Z0))
 
     pasos, lados = 22, 8
     camino = []
 
     for i in range(pasos + 1):
-        a = math.radians(212.0 + 116.0 * i / pasos)
-        camino.append(Vector((math.cos(a) * radio, 0.0, math.sin(a) * radio * 0.72)))
+        a = math.radians(208.0 + 124.0 * i / pasos)
+        camino.append(Vector((math.cos(a) * radio, 0.0, math.sin(a) * radio * 0.52)))
 
     verts, faces = [], []
 
@@ -357,7 +456,8 @@ def construir():
     piezas = []
 
     # --- cuerpo: pera, ancha abajo y estrecha donde se cose a la cabeza -----
-    perfil_cuerpo = [
+    perfil_cuerpo = PERFIL_CUERPO
+    _sin_usar = [
         (0.000, 0.000), (0.030, 0.005), (0.048, 0.015), (0.059, 0.029),
         (0.065, 0.046), (0.066, 0.062), (0.063, 0.078), (0.056, 0.094),
         (0.045, 0.109), (0.034, 0.121), (0.026, 0.130), (0.000, 0.136),
@@ -365,31 +465,25 @@ def construir():
     piezas.append(torneado("Cuerpo", perfil_cuerpo, blanco, aplanado=0.92))
 
     # --- cabeza: mas ancha que el cuerpo y algo achatada --------------------
-    perfil_cabeza = [
-        (0.000, -0.078), (0.030, -0.073), (0.052, -0.061), (0.068, -0.043),
-        (0.077, -0.021), (0.080, 0.003), (0.077, 0.027), (0.068, 0.049),
-        (0.051, 0.066), (0.029, 0.076), (0.000, 0.080),
-    ]
-    piezas.append(torneado("Cabeza", perfil_cabeza, blanco,
+    piezas.append(torneado("Cabeza", PERFIL_CABEZA, blanco,
                            centro=(0.0, -0.004, 0.196), aplanado=0.94))
 
     # --- orejas: solapas planas que arrancan EN la cabeza -------------------
     piezas.append(oreja("Oreja_Izq", -1, negro))
     piezas.append(oreja("Oreja_Der", 1, negro))
 
-    # --- manchas de la cara -------------------------------------------------
-    # La grande alrededor de un ojo y otra en el arranque de la otra oreja: en
-    # la foto el naranja asoma por los dos lados de la cabeza.
-    piezas.append(bulto("Mancha_Ojo", (0.078, 0.062, 0.076),
-                        (0.048, -0.046, 0.210), naranja))
-    piezas.append(bulto("Mancha_Oreja", (0.058, 0.056, 0.062),
-                        (-0.056, -0.028, 0.214), naranja))
+    # --- mancha del ojo -----------------------------------------------------
+    # UNA sola, sobre un ojo. Antes habia dos y ademas eran bultos pegados: la
+    # cabeza parecia tener chichones.
+    piezas.append(parche("Mancha_Ojo", PERFIL_CABEZA, (0.0, -0.004, 0.196), 0.94,
+                         naranja, 0.194, 0.240, math.radians(-52.0),
+                         math.radians(29.0)))
 
     # --- cara: ojos y nariz pequenos ----------------------------------------
-    piezas.append(bulto("Ojo_Izq", (0.017, 0.013, 0.018),
-                        (-0.030, -0.072, 0.216), negro, segmentos=16))
-    piezas.append(bulto("Ojo_Der", (0.017, 0.013, 0.018),
-                        (0.040, -0.070, 0.218), negro, segmentos=16))
+    piezas.append(bulto("Ojo_Izq", (0.013, 0.010, 0.014),
+                        (-0.029, -0.073, 0.214), negro, segmentos=16))
+    piezas.append(bulto("Ojo_Der", (0.013, 0.010, 0.014),
+                        (0.038, -0.070, 0.216), negro, segmentos=16))
 
     piezas.append(bulto("Nariz", (0.038, 0.032, 0.030),
                         (0.0, -0.078, 0.202), negro, segmentos=20))
@@ -397,17 +491,23 @@ def construir():
     piezas.append(sonrisa("Boca", negro))
 
     # --- barriga y ombligo ---------------------------------------------------
-    piezas.append(bulto("Barriga", (0.078, 0.046, 0.078),
-                        (0.0, -0.040, 0.056), naranja))
+    # La barriga tambien es una mancha cosida, no un bulto: se superponia al
+    # cuerpo y quedaba como una pelota metida por delante.
+    piezas.append(parche("Barriga", PERFIL_CUERPO, (0.0, 0.0, 0.0), 0.92,
+                         naranja, 0.026, 0.094, math.radians(-90.0),
+                         math.radians(46.0)))
 
-    piezas.append(bulto("Ombligo", (0.013, 0.011, 0.013),
-                        (0.0, -0.060, 0.050), naranja_osc, segmentos=14))
+    piezas.append(parche("Ombligo", PERFIL_CUERPO, (0.0, 0.0, 0.0), 0.92,
+                         naranja_osc, 0.052, 0.064, math.radians(-90.0),
+                         math.radians(7.0), sep=0.0028, filas=6, columnas=8))
 
     # --- manos naranjas colgando de un cordon --------------------------------
     for lado, sx in (("Izq", -1), ("Der", 1)):
+        # El cordon es NEGRO y fino: en la foto la mano cuelga de un cosido,
+        # no de un brazo. A 7,5 mm y en naranja parecia un brazo corto.
         piezas.append(cordon("Cordon_" + lado,
-                             (sx * 0.050, -0.008, 0.082),
-                             (sx * 0.072, -0.008, 0.078), 0.0075, naranja))
+                             (sx * 0.052, -0.008, 0.084),
+                             (sx * 0.074, -0.008, 0.078), 0.0042, negro))
 
         piezas.append(bulto("Mano_" + lado, (0.040, 0.036, 0.046),
                             (sx * 0.084, -0.008, 0.074), naranja,
