@@ -38,6 +38,9 @@ public class LocalLayout : MonoBehaviour
     [Tooltip("Con esto el local se queda a oscuras por dentro, que es de lo\nque va tener techo. Quitalo si prefieres verlo todo.")]
     public bool techoDaSombra = true;
 
+    [Tooltip("Cuanta luz de ambiente queda con el techo puesto. 1 es la de\nla escena; cuanto mas bajo, mas oscuro.")]
+    [Range(0.05f, 1f)] public float luzAmbiente = 0.45f;
+
     [Tooltip("Cuanto se mete el suelo por debajo de las paredes.")]
     public float floorOverlap = 0.4f;
 
@@ -64,6 +67,8 @@ public class LocalLayout : MonoBehaviour
     private Transform container;
     private Transform ceiling;
     private bool contado = false;
+    private bool ambienteGuardado = false;
+    private float ambienteOriginal = 1f;
 
     private float wallThickness = 0.5f;
     private Zone baseZone;
@@ -485,6 +490,8 @@ public class LocalLayout : MonoBehaviour
 
         ceiling = null;
 
+        ApagarAmbiente();
+
         if (!conTecho || floor == null || zones.Count == 0) return;
 
         GameObject holder = new GameObject(ceilingName);
@@ -502,7 +509,37 @@ public class LocalLayout : MonoBehaviour
 
         Debug.Log("[Local] Techo puesto: " + zones.Count + " tramo(s) a "
                   + y.ToString("0.00") + " m, sombra "
-                  + (techoDaSombra ? "SI" : "NO") + ".", this);
+                  + (techoDaSombra ? "SI" : "NO")
+                  + ", ambiente al " + Mathf.RoundToInt(luzAmbiente * 100f)
+                  + "%.", this);
+    }
+
+    // Bajar la luz de ambiente, que es la que el techo NO puede tapar.
+    //
+    // La sombra del techo corta el sol, pero el ambiente de esta escena sale
+    // del cielo y Unity se lo aplica a todo por igual, este dentro o fuera:
+    // ninguna geometria lo bloquea. Por eso con el techo puesto el local se
+    // quedaba en penumbra gris en vez de oscuro.
+    //
+    // Se toca en ejecucion y no en los ajustes de la escena a proposito: asi
+    // no hay que guardar la escena para probar, y al salir del modo de juego
+    // Unity lo devuelve solo a como estaba.
+    void ApagarAmbiente()
+    {
+        if (!Application.isPlaying) return;
+
+        // Solo una vez: guardar el valor DESPUES de haberlo bajado dejaria el
+        // original perdido, y cada recarga lo bajaria otra vez sobre lo ya
+        // bajado hasta dejarlo negro.
+        if (!ambienteGuardado)
+        {
+            ambienteOriginal = RenderSettings.ambientIntensity;
+            ambienteGuardado = true;
+        }
+
+        RenderSettings.ambientIntensity = conTecho
+            ? ambienteOriginal * luzAmbiente
+            : ambienteOriginal;
     }
 
     // Lo alto que sea la pared: su centro mas media altura es justo el borde
