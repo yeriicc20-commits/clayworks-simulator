@@ -25,8 +25,11 @@ public class NPCManosMaquina : MonoBehaviour
     [Tooltip("Lo que tarda una mano en llegar al mando y en soltarlo.")]
     public float suavizado = 7f;
 
-    [Tooltip("Cuanto se puede pasar del alcance del brazo antes de rendirse.")]
-    [Range(0.5f, 1f)] public float margenAlcance = 0.97f;
+    [Tooltip("Hasta cuanto puede pasarse del alcance antes de rendirse, en\nveces la longitud del brazo.")]
+    [Range(1f, 1.6f)] public float margenAlcance = 1.30f;
+
+    [Tooltip("Cuanto se inclina el cuerpo sobre la consola, como maximo.")]
+    [Range(0f, 40f)] public float inclinacionTorso = 26f;
 
     [Tooltip("Lo que tarda en meter la moneda.")]
     public float duracionMoneda = 1.1f;
@@ -52,6 +55,21 @@ public class NPCManosMaquina : MonoBehaviour
 
     Transform hombroIz, codoIz, manoIz;
     Transform hombroDe, codoDe, manoDe;
+    Transform torso;
+
+    float agachado = 0f;
+    bool yaAvisado = false;
+
+    // Uno solo y una sola vez, en toda la partida.
+    //
+    // Este componente se anade en tiempo de ejecucion, asi que no se le puede
+    // marcar "diagnostico" en el inspector antes de darle a Play: no existe
+    // todavia. Y sin ninguna senal, que esto no funcione se ve igual que que
+    // no se este ejecutando -- que es justo lo que paso.
+    //
+    // Asi que la primera vez que alguien se pone al mando deja una linea con
+    // las medidas. Una, no una por NPC y partida.
+    static bool yaContado = false;
     bool huesosBuscados = false;
 
     // -------------------------------------------------------- reposo de los
@@ -122,6 +140,23 @@ public class NPCManosMaquina : MonoBehaviour
         if (!Preparar(m)) return;
 
         que = Que.Jugando;
+
+        Contarlo();
+    }
+
+    void Contarlo()
+    {
+        if (yaContado || hombroIz == null) return;
+        yaContado = true;
+
+        float brazo = Largo(hombroIz, codoIz, manoIz);
+        float alJoystick = Vector3.Distance(hombroIz.position, PuntoJoystick());
+
+        Debug.Log("[Manos] Al mando. Brazo " + brazo.ToString("0.00")
+                  + " m, joystick a " + alJoystick.ToString("0.00")
+                  + " m, torso " + (torso != null ? torso.name : "NO ENCONTRADO")
+                  + ", inclinacion maxima " + inclinacionTorso.ToString("0")
+                  + " grados.", this);
     }
 
     // Soltar no borra la maquina de golpe.
@@ -148,6 +183,11 @@ public class NPCManosMaquina : MonoBehaviour
         hombroDe = Hueso("RightArm");
         codoDe = Hueso("RightForeArm");
         manoDe = Hueso("RightHand");
+
+        // Para inclinarse sobre la consola. Spine1 esta a media espalda, que
+        // es donde dobla una persona al asomarse a un mando bajo.
+        torso = Hueso("Spine1");
+        if (torso == null) torso = Hueso("Spine");
 
         if (hombroIz != null && hombroDe != null) return;
 
@@ -202,7 +242,9 @@ public class NPCManosMaquina : MonoBehaviour
         {
             Debug.Log("[Manos] joystick=" + joystick.name + " boton=" + boton.name
                       + " ranura=" + (ranura != null ? ranura.name : "NO")
-                      + " | brazo " + Largo(hombroIz, codoIz, manoIz).ToString("0.00") + " m",
+                      + " | brazo " + Largo(hombroIz, codoIz, manoIz).ToString("0.00") + " m"
+                      + " | joystick a " + Vector3.Distance(hombroIz.position,
+                                              PuntoJoystick()).ToString("0.00") + " m",
                       this);
         }
 
@@ -267,6 +309,19 @@ public class NPCManosMaquina : MonoBehaviour
 
         RepartirManos();
 
+        // El torso primero, y esto es lo que hace que llegue.
+        //
+        // El joystick esta a 0,98 m de alto y el NPC se planta a unos 0,40 m
+        // por delante de la consola: del hombro al mando salen unos 0,63 m,
+        // y un brazo mide 0,52. De pie y tieso NO llega, por mucho que se
+        // estire, asi que antes se inclina sobre la consola igual que lo
+        // haria cualquiera. Inclinado, el hombro se acerca y ya alcanza.
+        //
+        // Va antes de medir los pesos a proposito: se miden con el hombro ya
+        // colocado, que si no se descartaria por no llegar justo antes de
+        // haberse acercado.
+        InclinarTorso(k);
+
         pesoIz = Mathf.Lerp(pesoIz, PesoQueTocaria(hombroIz, codoIz, manoIz, metaIz), k);
         pesoDe = Mathf.Lerp(pesoDe, PesoQueTocaria(hombroDe, codoDe, manoDe, metaDe), k);
 
@@ -325,16 +380,90 @@ public class NPCManosMaquina : MonoBehaviour
         return Vector3.Distance(a.position, punto) <= Vector3.Distance(b.position, punto);
     }
 
-    // Cero si no hay meta, y tambien si el mando le queda fuera del alcance del
-    // brazo: antes de verle estirarse como un muneco de goma, que no llegue y se
-    // quede con los brazos como estaban.
+    // Cuanto manda la IK, segun lo lejos que le quede el mando.
+    //
+    // Antes esto era un acantilado: dentro del alcance mandaba del todo y un
+    // centimetro mas alla se apagaba de golpe. Y ademas se apagaba EN SILENCIO,
+    // que es como estuvo sin funcionar sin que nada lo dijera: el mando le
+    // quedaba a 0,63 m con un brazo de 0,52 y aqui salia cero.
+    //
+    // Ahora baja poco a poco. Dentro del alcance manda entero; entre el alcance
+    // y el margen se va apagando, que es el brazo estirado quedandose corto y
+    // se lee como que intenta llegar; mas alla se rinde.
     float PesoQueTocaria(Transform hombro, Transform codo, Transform mano, Vector3 meta)
     {
         if (meta == Vector3.zero || hombro == null) return 0f;
 
-        float alcance = Largo(hombro, codo, mano) * margenAlcance;
+        float brazo = Largo(hombro, codo, mano);
+        if (brazo < 0.01f) return 0f;
 
-        return Vector3.Distance(hombro.position, meta) <= alcance ? 1f : 0f;
+        float falta = Vector3.Distance(hombro.position, meta);
+
+        Avisar(falta, brazo);
+
+        return Mathf.InverseLerp(brazo * margenAlcance, brazo, falta);
+    }
+
+    // Una vez y solo una: si no llega, que se sepa por que.
+    void Avisar(float falta, float brazo)
+    {
+        if (yaAvisado || falta <= brazo * margenAlcance) return;
+
+        yaAvisado = true;
+
+        Debug.LogWarning("[Manos] El mando le queda a " + falta.ToString("0.00")
+                         + " m y el brazo mide " + brazo.ToString("0.00")
+                         + " m, asi que no llega ni inclinandose. Sube"
+                         + " inclinacionTorso o baja npcStandDistance en la"
+                         + " maquina.", this);
+    }
+
+    // Se asoma a la consola cuando el mando le queda alto de mas... o bajo.
+    //
+    // Se inclina lo justo para alcanzar y ni un grado mas: doblandose siempre
+    // lo mismo, los que llegasen de sobra quedarian encorvados sin motivo.
+    void InclinarTorso(float k)
+    {
+        float quiero = 0f;
+
+        if (torso != null && que != Que.Nada && maquina != null)
+        {
+            quiero = CuantoLeFalta(hombroIz, codoIz, manoIz, metaIz);
+            quiero = Mathf.Max(quiero, CuantoLeFalta(hombroDe, codoDe, manoDe, metaDe));
+        }
+
+        agachado = Mathf.Lerp(agachado, quiero, k);
+
+        if (torso == null || agachado < 0.002f) return;
+
+        // Hacia la maquina, no hacia delante del NPC: si esta girado, doblarse
+        // por su propio eje le alejaria el hombro en vez de acercarselo.
+        Vector3 hacia = maquina != null
+            ? -maquina.NPCFrontDirection
+            : torso.forward;
+
+        hacia.y = 0f;
+        if (hacia.sqrMagnitude < 1e-6f) return;
+
+        Vector3 eje = Vector3.Cross(Vector3.up, hacia.normalized);
+        if (eje.sqrMagnitude < 1e-6f) return;
+
+        float grados = agachado * inclinacionTorso;
+
+        torso.rotation = Quaternion.AngleAxis(grados, eje.normalized) * torso.rotation;
+    }
+
+    // De 0 a 1: 0 si llega de sobra, 1 si le falta medio brazo o mas.
+    float CuantoLeFalta(Transform hombro, Transform codo, Transform mano, Vector3 meta)
+    {
+        if (meta == Vector3.zero || hombro == null) return 0f;
+
+        float brazo = Largo(hombro, codo, mano);
+        if (brazo < 0.01f) return 0f;
+
+        float falta = Vector3.Distance(hombro.position, meta) - brazo * 0.92f;
+
+        return Mathf.Clamp01(falta / (brazo * 0.5f));
     }
 
     void Aplicar(Transform hombro, Transform codo, Transform mano,
