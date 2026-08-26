@@ -1264,7 +1264,10 @@ public class ClawController : MonoBehaviour
             // en el prefab, listos para volver con una linea.
             // Cerrar. Sin rodeos: el motor recibe la orden aqui y la mantiene
             // el solo hasta que se le diga otra cosa.
-            if (ConMotores) fingerMotors.Cerrar(fingerMotors.ParActual);
+            //
+            // Y con el par de CERRAR, que no es el de sujetar. Abajo hay que
+            // apartar los peluches de al lado; despues, solo aguantar uno.
+            if (ConMotores) fingerMotors.CerrarFuerte();
 
             Coroutine liveGripRoutine = StartCoroutine(CloseFingersLiveGrip(fingerCloseAngle));
 
@@ -1276,6 +1279,15 @@ public class ClawController : MonoBehaviour
             // pequeno es. Con un numero fijo hay que elegir entre subir a medio
             // cerrar o esperar de mas en todas las partidas.
             if (ConMotores) yield return EsperarACerrar();
+
+            // Ya cerrada, se baja al par de la partida: a partir de aqui lo que
+            // decide si el peluche sube es el mando, que es lo que se quiso.
+            //
+            // Y se baja ANTES del medio segundo de espera, no despues. Aguantar
+            // ese medio segundo a 2,5 Nm es apretar una pelota de trapo con seis
+            // veces la fuerza que hace falta, y una esfera apretada de mas sale
+            // escupida. La espera tiene que ser con el agarre de verdad.
+            if (ConMotores) fingerMotors.Cerrar(fingerMotors.ParActual);
 
             yield return new WaitForSeconds(closeBeforeLiftDelay);
 

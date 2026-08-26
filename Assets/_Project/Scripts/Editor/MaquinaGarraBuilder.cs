@@ -571,6 +571,15 @@ public static class MaquinaGarraBuilder
         // cerrarse, no un sexto.
         motores.motorSpeed = 100f;
 
+        // El par de CERRAR, que no es el de sujetar.
+        //
+        // Sujetar es aguantar un peluche: 0,85 Nm sobran. Cerrar es abrirse paso
+        // entre los peluches de al lado, porque la garra baja doce centimetros
+        // metida en el monton. Con 0,85 la boca tardaba 2,23 s en pasar de 317 a
+        // 239 mm, y muchas veces no se movia en tres segundos: los dedos no
+        // estaban parados, estaban atascados.
+        motores.torqueCierre = 2.5f;
+
         // Cuanto tiene que haberse cerrado la boca para que cuente como agarre.
         //
         // Se mide la boca y no el angulo de las bisagras. El angulo lleva el
@@ -606,7 +615,9 @@ public static class MaquinaGarraBuilder
         // habia numero bueno.
         claw.closeBeforeLiftDelay = 0.5f;
         claw.quietudCierre = 0.25f;
-        claw.esperaCierreMaxima = 3f;
+        // Y menos margen esperando: si a segundo y medio no ha cerrado, es que
+        // no va a cerrar, y quedarse tres segundos parado solo alarga el ridiculo.
+        claw.esperaCierreMaxima = 1.5f;
 
         claw.fingerMotors = motores;
 

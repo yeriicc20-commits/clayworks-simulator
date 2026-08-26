@@ -52,6 +52,11 @@ public class ClawFingerMotors : MonoBehaviour
     [Tooltip("Par del motor al ABRIR. Generoso: abrir siempre tiene que funcionar.")]
     public float openTorque = 4f;
 
+    [Tooltip("Par para CERRAR, que no es el mismo que para sujetar. Cerrar hay "
+             + "que hacerlo abriendose paso entre los peluches de al lado; "
+             + "sujetar es solo aguantar el peso de uno.")]
+    public float torqueCierre = 2.5f;
+
     [Header("Fuerza de apriete, en newton-metro")]
     [Tooltip("Lo minimo que puede tocar en una partida. Con esto no levanta ni "
              + "el peluche mas ligero: es la partida que no paga.")]
@@ -288,6 +293,28 @@ public class ClawFingerMotors : MonoBehaviour
         apretando = true;
 
         Motor(Mathf.Sign(closedAngle) * motorSpeed, par);
+    }
+
+    // Cerrar de golpe, con el par de cierre y no con el de sujetar.
+    //
+    // Son dos cosas distintas y hasta ahora se usaba el mismo numero para las
+    // dos. Sujetar es aguantar el peso de UN peluche: con 0,85 Nm sobra.
+    // Cerrar es abrirse paso entre los peluches de al lado, porque la garra
+    // baja doce centimetros metida en el monton y los dedos cierran rodeados.
+    // Eso pide bastante mas.
+    //
+    // Medido en el log: con 0,85 la boca pasaba de 317 a 239 mm en 2,23 s (35
+    // mm por segundo, empujando todo el camino), y muchas veces no se movia
+    // nada en tres segundos. Los dedos no estaban parados: estaban atascados.
+    //
+    // Y es como funciona una de verdad: cierra de golpe y luego aguanta con lo
+    // que le de el soleoide. Lo que decide si te llevas el peluche es lo
+    // segundo, que es justo donde manda el mando de la trasera.
+    public void CerrarFuerte()
+    {
+        apretando = true;
+
+        Motor(Mathf.Sign(closedAngle) * motorSpeed, torqueCierre);
     }
 
     public void Abrir()
