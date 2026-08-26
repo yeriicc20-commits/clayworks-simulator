@@ -255,8 +255,10 @@ public class ShopManager : MonoBehaviour
     {
         List<DecoShopItem> lista = new List<DecoShopItem>();
 
+        // Solo bombillas. El interruptor ya esta puesto en el local y con uno
+        // basta: enciende y apaga todas las luces, asi que un segundo no haria
+        // nada que no haga el primero.
         AnadirDeco(lista, "Bombilla", 45);
-        AnadirDeco(lista, "Interruptor", 25);
 
         return lista.ToArray();
     }
