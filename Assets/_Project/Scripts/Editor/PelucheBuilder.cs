@@ -63,10 +63,13 @@ public static class PelucheBuilder
             fbx = "Assets/_Project/Models/Aguacate.fbx",
             peso = PlushItem.WeightCategory.Medio,
 
-            // Los brazos cuelgan, igual que las orejas de Panxeta. Son
-            // munones cortos cosidos al costado: es justo lo que el sistema
-            // de cable sabe hacer.
-            partesBlandas = new[] { "Brazo_Izq", "Brazo_Der" },
+            // Sin piezas blandas: los brazos van rigidos, como los del oso.
+            //
+            // Se puede: son munones cosidos al costado y el sistema de cable
+            // sabria moverlos. Pero un aguacate no es un peluche de orejas
+            // colgando, y unos brazos meneandose le quitan el aire de pieza
+            // maciza que tiene en la foto. Aqui se deja quieto a proposito.
+            partesBlandas = null,
             tienda = "Aguacate",
             colores = new Dictionary<string, Color>
             {
