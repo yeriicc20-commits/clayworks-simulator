@@ -109,6 +109,13 @@ public class ClawController : MonoBehaviour
              + "un solapamiento y parpadea con el balanceo.")]
     public float tiempoParaDarPorPerdido = 0.15f;
 
+    [Tooltip("Cuanto tiene que llevar la boca sin estrecharse para dar el "
+             + "cierre por terminado.")]
+    public float quietudCierre = 0.25f;
+
+    [Tooltip("Tope de seguridad esperando a que cierre, por si algo se atasca.")]
+    public float esperaCierreMaxima = 3f;
+
     [Header("Agarre firme")]
     [Tooltip("A partir de que punto del mando, un agarre bien hecho deja de "
              + "poder escurrirse. Por debajo sigue siendo solo rozamiento y el "
@@ -1258,7 +1265,6 @@ public class ClawController : MonoBehaviour
 
         if (audio3d != null) audio3d.Alarma(false);
 
-        Debug.Log($"[ClawDiag] Descent stopped. armBaseLocalPos.y={armBaseLocalPos.y:F3} armDownY={armDownY:F3}");
 
         yield return new WaitForSeconds(1f);
 
@@ -1272,6 +1278,15 @@ public class ClawController : MonoBehaviour
             // en el prefab, listos para volver con una linea.
             Coroutine liveGripRoutine = StartCoroutine(CloseFingersLiveGrip(fingerCloseAngle));
 
+            // Primero cerrar del todo, y DESPUES subir.
+            //
+            // Antes se esperaba un tiempo fijo y se subia, cerrase o no. Y el
+            // tiempo que tarda en cerrar no es fijo: depende de lo gordo que sea
+            // el peluche que encuentre, porque los dedos recorren mas cuanto mas
+            // pequeno es. Con un numero fijo hay que elegir entre subir a medio
+            // cerrar o esperar de mas en todas las partidas.
+            if (ConMotores) yield return EsperarACerrar();
+
             yield return new WaitForSeconds(closeBeforeLiftDelay);
 
             yield return MoveArmTo(armUpY);
@@ -1283,7 +1298,6 @@ public class ClawController : MonoBehaviour
             Physics.SyncTransforms();
 
             int validContactsRealistic = CountValidFingerContacts();
-            Debug.Log($"[ClawDiag] After live-grip closing: validContacts={validContactsRealistic}/{requiredContactCount} activeJoints={ActiveFingerJointCount()} gripForceRating={currentGripForceRating:F2}");
 
             if (ConMotores)
             {
@@ -1353,12 +1367,10 @@ public class ClawController : MonoBehaviour
                         }
                     }
 
-                    Debug.Log("[ClawDiag] Grab confirmed, joint(s) survived verification.");
                     gripMonitor = StartCoroutine(MonitorGripLossRealistic());
                 }
                 else
                 {
-                    Debug.Log("[ClawDiag] Grab failed verification, joint(s) broke.");
                     ReleaseAllFingerJoints();
                 }
             }
@@ -1372,7 +1384,6 @@ public class ClawController : MonoBehaviour
             Physics.SyncTransforms();
 
             int validContacts = CountValidFingerContacts();
-            Debug.Log($"[ClawDiag] After closing: validContacts={validContacts}/{requiredContactCount} lastTouched={(lastTouchedPlushCollider != null ? lastTouchedPlushCollider.name : "NULL")}");
 
             bool grabAttempted = validContacts >= requiredContactCount;
 
@@ -1380,7 +1391,6 @@ public class ClawController : MonoBehaviour
             {
                 TryGrabPlush();
                 jointExistsAfterAttempt = currentJoint != null;
-                Debug.Log($"[ClawDiag] TryGrabPlush result: jointCreated={currentJoint != null}");
             }
             else
             {
@@ -1403,12 +1413,10 @@ public class ClawController : MonoBehaviour
                         }
                     }
 
-                    Debug.Log("[ClawDiag] Grab confirmed, joint survived verification.");
                     gripMonitor = StartCoroutine(MonitorGripLoss());
                 }
                 else
                 {
-                    Debug.Log("[ClawDiag] Grab failed verification, joint broke.");
 
                     if (heldPlushRb != null)
                     {
@@ -1730,6 +1738,40 @@ public class ClawController : MonoBehaviour
         }
 
         return primero ? parte.bounds : b;
+    }
+
+    // Espera a que los dedos dejen de cerrarse.
+    //
+    // El final del cierre no es un tiempo, es un hecho: la boca deja de
+    // estrecharse porque el peluche no la deja seguir. Eso se puede medir, asi
+    // que se mide, en vez de contar segundos y cruzar los dedos.
+    IEnumerator EsperarACerrar()
+    {
+        float boca = RadioGarra();
+        float quieta = 0f;
+        float total = 0f;
+
+        while (total < esperaCierreMaxima)
+        {
+            yield return new WaitForFixedUpdate();
+
+            float dt = Time.fixedDeltaTime;
+            total += dt;
+
+            float ahora = RadioGarra();
+
+            // Medio milimetro por paso es el temblor del balanceo, no cierre.
+            if (boca - ahora < 0.0005f) quieta += dt;
+            else quieta = 0f;
+
+            boca = ahora;
+
+            if (quieta >= quietudCierre) break;
+        }
+
+        Debug.Log(string.Format(
+            "[Garra] Ha cerrado en {0:F2} s y la boca se ha quedado en {1:F0} mm",
+            total, RadioGarra() * 2000f));
     }
 
     // Sujeta el peluche de verdad, sin depender del rozamiento.

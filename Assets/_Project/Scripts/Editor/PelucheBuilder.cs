@@ -402,6 +402,26 @@ public static class PelucheBuilder
 // rato buscando donde no es. Ya paso con la maquina.
 public class PelucheAutoBuild : AssetPostprocessor
 {
+    // Los modelos entran con Read/Write puesto, siempre.
+    //
+    // Sin el, Mesh.vertices devuelve un array vacio en ejecucion. No lanza
+    // ninguna excepcion y no avisa de nada: el codigo que lee la malla
+    // simplemente no encuentra nada y se calla o culpa a otra cosa. Las orejas
+    // llevaban sin moverse desde que existen por esto, y el aviso que salia
+    // hablaba del eje de la malla.
+    //
+    // Es una casilla del importador que hay que acordarse de marcar, y
+    // acordarse no es un sistema.
+    void OnPreprocessModel()
+    {
+        if (!assetPath.StartsWith("Assets/_Project/Models/")) return;
+
+        ModelImporter importador = assetImporter as ModelImporter;
+        if (importador == null || importador.isReadable) return;
+
+        importador.isReadable = true;
+    }
+
     static void OnPostprocessAllAssets(string[] importados, string[] borrados,
                                        string[] movidos, string[] movidosDesde)
     {

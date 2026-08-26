@@ -597,10 +597,16 @@ public static class MaquinaGarraBuilder
         // siendo igual de tacana que hasta ahora.
         claw.agarreSeguroDesde = 0.7f;
 
-        // Medio segundo mas de espera con los dedos ya cerrados antes de subir.
-        // Cerrar tarda 0,5 s, asi que ahora se queda abajo apretando otros 0,7:
-        // el momento de "lo tiene o no lo tiene" se ve, en vez de pasar de largo.
-        claw.closeBeforeLiftDelay = 1.2f;
+        // Medio segundo apretando DESPUES de haber acabado de cerrar.
+        //
+        // Ya no hace falta que este numero cubra tambien lo que tarda en cerrar:
+        // de eso se encarga EsperarACerrar(), que mira la boca y sabe cuando ha
+        // topado con el peluche. Antes era un tiempo fijo para las dos cosas, y
+        // como cerrar tarda mas o menos segun lo gordo que sea el peluche, no
+        // habia numero bueno.
+        claw.closeBeforeLiftDelay = 0.5f;
+        claw.quietudCierre = 0.25f;
+        claw.esperaCierreMaxima = 3f;
 
         claw.fingerMotors = motores;
 

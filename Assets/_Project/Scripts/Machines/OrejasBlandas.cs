@@ -133,6 +133,18 @@ public class OrejasBlandas : MonoBehaviour
         // todos los peluches de la maquina.
         c.malla = mf.mesh;
 
+        // Sin Read/Write en el importador del modelo, vertices devuelve un
+        // array VACIO en ejecucion. No falla, no avisa: simplemente no hay
+        // nada. Las orejas llevaban asi desde que existen, y el aviso que
+        // salia culpaba al eje de la malla en vez de a esto.
+        if (!c.malla.isReadable)
+        {
+            Debug.LogWarning("[Orejas] La malla de " + t.name + " no se puede "
+                             + "leer. Marca Read/Write en el importador del "
+                             + "modelo del peluche o las orejas no se moveran.", t);
+            return null;
+        }
+
         Vector3[] v = c.malla.vertices;
         c.normal = c.malla.normals;
 
