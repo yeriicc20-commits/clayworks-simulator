@@ -36,6 +36,7 @@ public class TrampillaPremio : MonoBehaviour
              + "que no se cierre en las narices del jugador.")]
     public float esperaCierre = 1.2f;
 
+    PlushDropZone entrega;
     Vector3 posCerrada;
     Quaternion rotCerrada;
     Vector3 bisagraLocal;
@@ -57,6 +58,8 @@ public class TrampillaPremio : MonoBehaviour
             enabled = false;
             return;
         }
+
+        entrega = GetComponentInChildren<PlushDropZone>(true);
 
         posCerrada = hoja.localPosition;
         rotCerrada = hoja.localRotation;
@@ -99,10 +102,26 @@ public class TrampillaPremio : MonoBehaviour
         {
             if (dentro[i] == null) continue;
 
-            // Solo cuenta un peluche que ya se pueda coger. Los que siguen
-            // dentro de la maquina estan en la misma capa, y sin esto la puerta
-            // se abriria sola con la maquina llena.
-            if (dentro[i].GetComponentInParent<PelucheRecogible>() == null) continue;
+            PlushItem peluche = dentro[i].GetComponentInParent<PlushItem>();
+            if (peluche == null) continue;
+
+            // Lo que esta en el cajon es del jugador, punto.
+            //
+            // La entrega la disparaba un trigger en la BOCA, arriba del todo
+            // del conducto. Un peluche que pasa de largo, o que ya estaba ahi
+            // abajo de antes, no vuelve a cruzarlo nunca: se quedaba en el
+            // cajon sin ser de nadie, sin poder cogerse y con la puerta
+            // cerrada porque no habia a quien abrirsela.
+            //
+            // El cajon es donde acaba, asi que es el sitio bueno para
+            // preguntarlo. Collect() ya se protege sola de contar dos veces.
+            if (entrega != null && !peluche.collected && !peluche.isGrabbed)
+            {
+                entrega.Collect(peluche);
+            }
+
+            // Y para abrir, que se pueda coger de verdad.
+            if (peluche.GetComponent<PelucheRecogible>() == null) continue;
 
             hay = true;
             break;

@@ -15,11 +15,27 @@ public class PlushDropZone : MonoBehaviour
         }
     }
 
-    void OnTriggerEnter(Collider other)
+    void OnTriggerEnter(Collider other) { Mirar(other); }
+
+    // Tambien mientras esta dentro, no solo al entrar.
+    //
+    // Un peluche que se queda parado en la boca no vuelve a disparar Enter
+    // nunca, y se quedaba ahi sin ser de nadie: ni premio ni de la maquina.
+    void OnTriggerStay(Collider other) { Mirar(other); }
+
+    void Mirar(Collider other)
     {
         PlushItem plush = other.GetComponentInParent<PlushItem>();
-        if (plush == null || plush.isGrabbed || !plush.hasBeenGrabbed) return;
 
+        if (plush == null || plush.isGrabbed || plush.collected) return;
+
+        // Ya NO se exige que la garra lo haya agarrado.
+        //
+        // Se exigia, y por eso un peluche que la garra tira al agujero de un
+        // empujon se quedaba en el cajon sin poder cogerse y con la puerta
+        // cerrada. En una maquina de verdad lo que cae por el agujero es tuyo,
+        // lo hayas cogido con la garra o lo hayas empujado. Es media gracia del
+        // juego, de hecho.
         Collect(plush);
     }
 

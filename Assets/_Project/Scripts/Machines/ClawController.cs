@@ -124,11 +124,10 @@ public class ClawController : MonoBehaviour
 
     private FixedJoint agarreFirme;
 
-    [Tooltip("Cuanto tiene que haberse cerrado la BOCA de la garra respecto a "
-             + "como esta en reposo para que cuente como agarre. Con esto en "
-             + "cero, un peluche encajado contra la cabeza sube con la garra "
-             + "abierta de par en par.")]
-    [Range(0f, 0.6f)] public float cierreMinimoParaAgarrar = 0.18f;
+    [Tooltip("Cuantos milimetros tiene que haberse estrechado la BOCA para que "
+             + "cuente como agarre. En milimetros y no en porcentaje: un "
+             + "porcentaje castiga a los peluches gordos por ser gordos.")]
+    public float cierreMinimoBoca = 0.020f;
 
     [Header("Giro de la garra sobre su eje")]
     [Tooltip("La garra se retuerce sola sobre el cable, hacia un lado y hacia "
@@ -1359,7 +1358,7 @@ public class ClawController : MonoBehaviour
                     Debug.Log(string.Format(
                         "[Garra] Sin agarre firme: {0}{1}. Sube solo con "
                         + "rozamiento y se puede caer.",
-                        bienCogido ? "" : "no ha cerrado lo bastante",
+                        bienCogido ? "" : "los dedos no han llegado a envolverlo",
                         mandoAlto ? "" : (bienCogido ? "" : " y ")
                                           + "el mando esta al "
                                           + (fingerMotors.ajuste * 100f).ToString("F0")
@@ -1890,15 +1889,25 @@ public class ClawController : MonoBehaviour
 
         if (abierta <= 0.001f) return true;
 
-        float boca = RadioGarra();
-        float cerrada = 1f - boca / abierta;
+        // En milimetros de boca, no en porcentaje.
+        //
+        // Con un porcentaje, un peluche gordo no puede cumplirlo NUNCA por muy
+        // bien cogido que este: MISHKA mide 285 mm y la boca abierta 318, asi
+        // que los dedos solo pueden recorrer un 11%. Se le negaba el agarre
+        // firme por ser grande, que es justo al reves de como deberia ir.
+        //
+        // Lo que dice si los dedos han llegado a envolver algo es cuanto han
+        // entrado, y eso es una distancia. Veinte milimetros separan bien los
+        // casos del log: 100 y 31 mm cuando agarra, 7 y 1 cuando no.
+        float entrada = (abierta - RadioGarra()) * 2f;
 
         Debug.Log(string.Format(
-            "[Garra] Boca {0:F0} mm de {1:F0} abierta: cerrada al {2:P0} "
-            + "(hace falta {3:P0})",
-            boca * 2000f, abierta * 2000f, cerrada, cierreMinimoParaAgarrar));
+            "[Garra] Boca de {0:F0} a {1:F0} mm: ha entrado {2:F0} mm "
+            + "(hacen falta {3:F0})",
+            abierta * 2000f, RadioGarra() * 2000f, entrada * 1000f,
+            cierreMinimoBoca * 1000f));
 
-        return cerrada >= cierreMinimoParaAgarrar;
+        return entrada >= cierreMinimoBoca;
     }
 
     Rigidbody PelucheEnLaGarra()

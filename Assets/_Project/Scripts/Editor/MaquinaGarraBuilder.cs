@@ -595,7 +595,7 @@ public static class MaquinaGarraBuilder
         //   peluche solo encajado ............ 210 mm     7%   <- se rechaza
         //   limite ........................... 185 mm    18%
         //   cogiendo la cabeza de Panxeta .... 146 mm    35%   <- se acepta
-        claw.cierreMinimoParaAgarrar = 0.18f;
+        claw.cierreMinimoBoca = 0.020f;
 
         // A partir de aqui, un agarre bien hecho ya no se cae.
         //
