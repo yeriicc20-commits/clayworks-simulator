@@ -64,12 +64,12 @@ public class ToyBox : CarriableBox
 
         if (toyCount <= 0)
         {
-            NotificationManager.Instance.ShowMessage("Caja vacia");
+            NotificationManager.Nota("Caja vacia");
             carrier.ConsumeCarriedBox();
         }
         else
         {
-            NotificationManager.Instance.ShowMessage("Peluches restantes: " + toyCount);
+            NotificationManager.Nota("Peluches restantes: " + toyCount);
         }
     }
 }

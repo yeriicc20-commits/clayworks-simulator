@@ -134,7 +134,7 @@ public class PelucheEnMano : MonoBehaviour
         distanciaActual = distanciaMirar;
 
         if (NotificationManager.Instance != null)
-            NotificationManager.Instance.ShowMessage("Peluche en la mano");
+            NotificationManager.Nota("Peluche en la mano");
     }
 
     // Devuelve true mientras se esta apuntando el tiro.

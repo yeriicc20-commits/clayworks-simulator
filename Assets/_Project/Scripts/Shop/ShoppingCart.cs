@@ -111,7 +111,7 @@ public class ShoppingCart : MonoBehaviour
         }
         else
         {
-            NotificationManager.Instance.ShowMessage("Compra realizada");
+            NotificationManager.Nota("Compra realizada");
         }
 
         lines.Clear();

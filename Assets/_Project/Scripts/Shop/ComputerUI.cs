@@ -280,7 +280,7 @@ public class ComputerUI : MonoBehaviour
         {
             if (expansion.Buy(level))
             {
-                NotificationManager.Instance.ShowMessage("Expansion " + level + " comprada");
+                NotificationManager.Nota("Expansion " + level + " comprada");
             }
             else
             {

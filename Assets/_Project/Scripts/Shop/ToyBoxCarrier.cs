@@ -27,7 +27,7 @@ public class ToyBoxCarrier : MonoBehaviour
         isCarrying = true;
         insertTimer = 0f;
 
-        NotificationManager.Instance.ShowMessage("Llevas una caja con " + count + " peluches. Mira a una maquina y manten click izquierdo");
+        NotificationManager.Nota("Llevas una caja con " + count + " peluches. Mira a una maquina y manten click izquierdo");
     }
 
     void Update()
@@ -65,12 +65,12 @@ public class ToyBoxCarrier : MonoBehaviour
 
         if (remainingCount <= 0)
         {
-            NotificationManager.Instance.ShowMessage("Caja vacia");
+            NotificationManager.Nota("Caja vacia");
             StopCarrying();
         }
         else
         {
-            NotificationManager.Instance.ShowMessage("Peluches restantes: " + remainingCount);
+            NotificationManager.Nota("Peluches restantes: " + remainingCount);
         }
     }
 

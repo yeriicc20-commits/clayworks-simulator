@@ -153,7 +153,7 @@ public class PricePanel : MonoBehaviour
 
         if (ComputerUI.Instance != null) ComputerUI.Instance.RefreshPrecios();
 
-        NotificationManager.Instance.ShowMessage("Precio: " + GameManager.Format(target.price));
+        NotificationManager.Nota("Precio: " + GameManager.Format(target.price));
 
         Close();
     }

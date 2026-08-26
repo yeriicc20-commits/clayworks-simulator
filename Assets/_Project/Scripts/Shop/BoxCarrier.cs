@@ -116,7 +116,7 @@ public class BoxCarrier : MonoBehaviour
         box.transform.localRotation = Quaternion.Euler(heldLocalEuler);
         box.transform.localScale = originalScale * heldScale;
 
-        NotificationManager.Instance.ShowMessage("Caja en brazos");
+        NotificationManager.Nota("Caja en brazos");
 
         return true;
     }
