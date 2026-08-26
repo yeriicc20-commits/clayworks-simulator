@@ -197,14 +197,15 @@ def construir():
     # delante. Estaba 8 mm afuera, y con eso sobresalia mas de dos tercios: se
     # veia una pelota pegada al aguacate en vez de un hueso metido en la carne.
     #
-    # Y redondo de verdad, mismo ancho que alto. Antes era un ovalo un poco mas
-    # alto que ancho, que es lo que hace un huevo, no un hueso.
+    # Y es una ESFERA, con sus tres medidas iguales. Aplastandola de fondo sale
+    # un boton cosido, no un hueso: lo que sobresale tiene que ser media bola
+    # con su volumen, no una chapa redonda.
     hueso_z = 0.078
     centro = en_superficie(FRENTE, hueso_z)
 
-    piezas.append(p.bulto("Hueso", (0.066, 0.022, 0.066),
+    piezas.append(p.bulto("Hueso", (0.058, 0.058, 0.058),
                           (centro.x, centro.y, hueso_z),
-                          hueso, segmentos=26))
+                          hueso, segmentos=30))
 
     # --- la cara ------------------------------------------------------------
     # Los ojos, pequenos. En la foto miden un 6% del ancho del cuerpo, y ese
