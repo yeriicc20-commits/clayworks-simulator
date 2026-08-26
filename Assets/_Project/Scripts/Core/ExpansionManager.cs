@@ -25,7 +25,14 @@ public class ExpansionManager : MonoBehaviour
     void Start()
     {
         // El local necesita saber redimensionarse antes de la primera compra.
-        LocalLayout.EnsureExists();
+        //
+        // Y se le dice el nivel, que si no depende de quien arranque primero:
+        // el local lee este nivel en su Start, y si el local nace antes que
+        // esto -- que es lo que pasa desde que se crea al arrancar -- lee cero
+        // y una partida guardada con ampliaciones saldria sin ellas.
+        LocalLayout layout = LocalLayout.EnsureExists();
+
+        if (layout != null) layout.ApplyLevel(currentLevel);
     }
 
     public static ExpansionManager EnsureExists()

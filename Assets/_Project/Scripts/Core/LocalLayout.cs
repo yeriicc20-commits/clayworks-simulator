@@ -35,6 +35,9 @@ public class LocalLayout : MonoBehaviour
     [Tooltip("A que altura va. En 0 se saca de lo alto que sea la pared.")]
     public float ceilingHeight = 0f;
 
+    [Tooltip("Con esto el local se queda a oscuras por dentro, que es de lo\nque va tener techo. Quitalo si prefieres verlo todo.")]
+    public bool techoDaSombra = true;
+
     [Tooltip("Cuanto se mete el suelo por debajo de las paredes.")]
     public float floorOverlap = 0.4f;
 
@@ -69,6 +72,19 @@ public class LocalLayout : MonoBehaviour
     private int appliedLevel = -1;
 
     private readonly List<Zone> zones = new List<Zone>();
+
+    // Que exista desde el arranque, sin depender de que abras nada.
+    //
+    // Ni esto ni ExpansionManager estan puestos en la escena: se creaban solos
+    // la primera vez que abrias la pestana de ampliaciones en el ordenador.
+    // Mientras solo servian para ampliar daba igual, porque hasta ese momento
+    // no habia nada que hacer. Pero el techo tiene que estar desde el primer
+    // segundo, y por eso al empezar una partida no habia ninguno.
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void Arrancar()
+    {
+        EnsureExists();
+    }
 
     void Awake()
     {
@@ -523,21 +539,26 @@ public class LocalLayout : MonoBehaviour
         // de donde se ve un techo: sin voltearlo no se veria nada desde dentro.
         tr.localRotation = floor.localRotation * Quaternion.Euler(180f, 0f, 0f);
 
-        NoHagasSombra(go);
+        Sombra(go);
         Retile(tr);
     }
 
-    // El techo se ve, pero no tapa la luz.
+    // El techo tapa la luz, y por eso dentro se hace de noche.
     //
-    // En la escena hay UNA luz y es direccional. Un techo que proyecte sombra
-    // deja el local entero a oscuras de golpe, que no es lo que nadie pide al
-    // pedir un techo. Sin proyectar, la luz sigue entrando igual que hasta
-    // ahora y el techo se ve por debajo con la luz de ambiente.
-    static void NoHagasSombra(GameObject go)
+    // En la escena hay UNA luz y es direccional, asi que el techo la corta
+    // entera: el local se queda a oscuras. Eso es lo que se busca -- un sitio
+    // cerrado se ve cerrado -- pero conviene saber de donde viene, porque el
+    // dia que parezca demasiado oscuro lo que hay que hacer no es quitar la
+    // sombra, sino poner luces dentro.
+    void Sombra(GameObject go)
     {
+        var modo = techoDaSombra
+            ? UnityEngine.Rendering.ShadowCastingMode.On
+            : UnityEngine.Rendering.ShadowCastingMode.Off;
+
         foreach (Renderer r in go.GetComponentsInChildren<Renderer>(true))
         {
-            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.shadowCastingMode = modo;
         }
     }
 
