@@ -47,7 +47,7 @@ public class ClawMachineInteraction : MonoBehaviour
             + AjustesControles.NombreTecla(priceKey) + ": cambiar precio");
 
         if (AjustesControles.Pulsando(AjustesControles.Accion.Usar)) TryPay();
-        else if (Input.GetKeyDown(priceKey)) OpenPricePanel();
+        else if (AjustesControles.Pulsando(AjustesControles.Accion.Precios)) OpenPricePanel();
     }
 
     void OpenPricePanel()
