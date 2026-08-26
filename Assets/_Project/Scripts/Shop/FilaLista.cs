@@ -25,53 +25,79 @@ public static class FilaLista
     public const float ALTO = 58f;
     public const float FOTO = 46f;
 
-    // Deja el contenedor listo para una lista de verdad.
+    const int MARGEN = 10;
+    const float HUECO = 6f;
+
+    // Deja el contenedor listo para leerse como una lista.
     //
-    // Los contenedores de la escena llevan GridLayoutGroup, que reparte a los
-    // hijos en celdas de tamano fijo. Una fila de lista necesita el ANCHO
-    // entero: metida en una celda de 140 se queda con la foto y el nombre
-    // fuera y solo se ve el trozo del precio, que es exactamente como se veia.
+    // Los contenedores de la escena llevan GridLayoutGroup con celdas de
+    // 200x240. Una fila de lista necesita el ancho entero: metida en una celda
+    // de 200 se queda con la foto y el nombre fuera del recorte y solo asoma el
+    // trozo del precio, que es exactamente como se veia.
     //
-    // Se apaga la rejilla en vez de borrarla: si algun dia se quiere volver a
-    // tarjetas, esta ahi con sus medidas.
+    // Lo que NO se puede hacer es cambiar la rejilla por un VerticalLayoutGroup.
+    // Un GameObject admite un solo LayoutGroup, y desactivar el que hay no vale
+    // de nada: AddComponent devuelve null igualmente. Lo hice y dejo la tienda
+    // en blanco, porque la NullReferenceException se llevaba por delante el
+    // resto de GenerateShopUI antes de crear ni una fila.
+    //
+    // No hace falta: una rejilla de una sola columna a todo lo ancho ya ES una
+    // lista. Se configura la que esta puesta y no se le toca nada a la escena.
     public static void PrepararLista(Transform contenedor)
     {
-        if (contenedor == null) return;
+        RectTransform rt = contenedor as RectTransform;
+        if (rt == null) return;
+
+        float ancho = rt.rect.width - MARGEN * 2f;
+
+        // Si el layout todavia no ha corrido el rect mide 0, y unas celdas de
+        // nada se ven igual de mal que no tener lista.
+        if (ancho < 1f) ancho = 620f;
 
         GridLayoutGroup rejilla = contenedor.GetComponent<GridLayoutGroup>();
-        if (rejilla != null) rejilla.enabled = false;
 
-        HorizontalLayoutGroup fila = contenedor.GetComponent<HorizontalLayoutGroup>();
-        if (fila != null) fila.enabled = false;
+        if (rejilla != null)
+        {
+            rejilla.enabled = true;
+            rejilla.padding = new RectOffset(MARGEN, MARGEN, MARGEN, MARGEN);
+            rejilla.cellSize = new Vector2(ancho, ALTO);
+            rejilla.spacing = new Vector2(0f, HUECO);
+            rejilla.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            rejilla.constraintCount = 1;
+            rejilla.startAxis = GridLayoutGroup.Axis.Horizontal;
+            rejilla.startCorner = GridLayoutGroup.Corner.UpperLeft;
+            rejilla.childAlignment = TextAnchor.UpperCenter;
+            return;
+        }
 
+        // Sin rejilla de por medio, un vertical normal.
         VerticalLayoutGroup lista = contenedor.GetComponent<VerticalLayoutGroup>();
-        if (lista == null) lista = contenedor.gameObject.AddComponent<VerticalLayoutGroup>();
+
+        if (lista == null)
+        {
+            // Con cualquier otro LayoutGroup puesto, tampoco se puede anadir.
+            // Antes de estrellarse, mejor dejarlo como esta y decirlo.
+            LayoutGroup otro = contenedor.GetComponent<LayoutGroup>();
+
+            if (otro != null)
+            {
+                Debug.LogWarning("[Lista] " + contenedor.name + " lleva un "
+                                 + otro.GetType().Name + ", asi que no puedo poner"
+                                 + " la lista en vertical.");
+                return;
+            }
+
+            lista = contenedor.gameObject.AddComponent<VerticalLayoutGroup>();
+        }
 
         lista.enabled = true;
-        lista.spacing = 6f;
-        lista.padding = new RectOffset(10, 10, 10, 10);
+        lista.spacing = HUECO;
+        lista.padding = new RectOffset(MARGEN, MARGEN, MARGEN, MARGEN);
         lista.childAlignment = TextAnchor.UpperCenter;
         lista.childControlWidth = true;
         lista.childControlHeight = true;
         lista.childForceExpandWidth = true;
         lista.childForceExpandHeight = false;
-
-        // Aqui no va ningun ContentSizeFitter, y conviene dejarlo escrito.
-        //
-        // Estos contenedores van con las anclas estiradas (0,0 -> 1,1) y el
-        // sizeDelta en negativo: su alto es el del padre menos un margen. Sobre
-        // un rect asi el fitter no fija el alto, se lo SUMA al del padre, y el
-        // contenedor se va por debajo del panel llevandose la lista fuera de la
-        // pantalla. Puse uno y desaparecio la tienda entera.
-        //
-        // Solo tendria sentido siendo el contenido de un ScrollRect, y en esta
-        // pantalla no hay ninguno: el panel mide 390 de alto y las filas caben.
-        ContentSizeFitter sobra = contenedor.GetComponent<ContentSizeFitter>();
-
-        if (sobra != null && contenedor.GetComponentInParent<ScrollRect>() == null)
-        {
-            sobra.enabled = false;
-        }
     }
 
     // Devuelve la fila para que quien la pida pueda colgarle mas cosas.
