@@ -82,6 +82,13 @@ public class ClawFingerMotors : MonoBehaviour
              + "punto de partida del que sube con cada partida sin premio.")]
     [Range(0f, 1f)] public float ajuste = 0.35f;
 
+    [Tooltip("El mismo mando, pero para cuando juega un npc.\n\n"
+             + "Alto a proposito: una sala donde nadie gana nunca no parece una "
+             + "sala, parece un decorado. Ver a otro llevarse un peluche es la "
+             + "mitad de la gracia de estar ahi, y ademas es lo que hace creer "
+             + "que se puede.")]
+    [Range(0f, 1f)] public float ajusteNPC = 0.85f;
+
     [Header("Progresion entre premios")]
     [Tooltip("A las cuantas partidas sin premio llega al maximo del motor. Es el "
              + "intervalo de pago de una recreativa: la maquina va apretando un "
@@ -104,9 +111,13 @@ public class ClawFingerMotors : MonoBehaviour
 
     // Techo de par de la proxima partida. Parte de lo que marca el mando y sube
     // con cada jugada sin premio hasta el maximo del motor.
-    public float TechoActual
+    public float TechoActual { get { return TechoDe(ajuste); } }
+
+    // El techo para un mando cualquiera. Existe porque el jugador y los npc
+    // no juegan con el mismo: la maquina es igual de tacana con el dueno que
+    // con el de al lado solo si se le pide expresamente.
+    public float TechoDe(float mando)
     {
-        get
         {
             // El mando no va en linea recta hasta el maximo, sino con un codo.
             //
@@ -114,7 +125,7 @@ public class ClawFingerMotors : MonoBehaviour
             // tramo con el que se juega. El ultimo tramo dispara el par, porque
             // para que agarre A VECES basta con poco y para que no se caiga
             // NUNCA hace falta bastante mas.
-            float a = Mathf.Clamp01(ajuste);
+            float a = Mathf.Clamp01(mando);
 
             float baseTecho = a <= mandoFirme
                 ? Mathf.Lerp(torqueMin, torqueNormal, a / mandoFirme)
@@ -254,12 +265,14 @@ public class ClawFingerMotors : MonoBehaviour
 
     // Fuerza de esta partida. Casi siempre floja: es como hace trampa una
     // maquina real, bajando la corriente del motor salvo cada tantas jugadas.
-    public float ParaEstaPartida()
+    public float ParaEstaPartida() { return ParaEstaPartida(ajuste); }
+
+    public float ParaEstaPartida(float mando)
     {
         // El mando pone el punto de partida y la cuenta de partidas sin premio
         // lo va subiendo. Las generosas se saltan ese techo y tiran hacia el
         // maximo, que es lo que hace que a veces pague antes de tiempo.
-        float techo = TechoActual;
+        float techo = TechoDe(mando);
 
         bool generosa = Random.value < generousChance;
 
@@ -273,7 +286,7 @@ public class ClawFingerMotors : MonoBehaviour
         // y el jugador ha cogido bien el peluche, se lo lleva. Antes al 100%
         // seguia saliendo cualquier cosa entre 0,29 y 0,45, y con la de abajo el
         // peluche se escurria aunque el mando dijera que no podia pasar.
-        float firme = Mathf.Clamp01((Mathf.Clamp01(ajuste) - mandoFirme)
+        float firme = Mathf.Clamp01((Mathf.Clamp01(mando) - mandoFirme)
                                     / Mathf.Max(1e-4f, 1f - mandoFirme));
 
         suelo = Mathf.Lerp(suelo, techo, firme);

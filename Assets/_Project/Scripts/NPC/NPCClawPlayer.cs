@@ -19,8 +19,11 @@ public class NPCClawPlayer : MonoBehaviour
     public float waitAfterPlaying = 2f;
     public float waitBetweenRetries = 1f;
 
-    [Range(0f, 1f)]
-    public float retryChance = 1f / 3f;
+    [Tooltip("Probabilidad de volver a intentarlo despues de perder.\n\n"
+             + "Estaba en un tercio: la mayoria se iba a la primera derrota, y "
+             + "como perder es lo normal, casi ninguno llegaba a ganar nada. Un "
+             + "cliente de verdad no se va a la primera; lo pica.")]
+    [Range(0f, 1f)] public float retryChance = 0.7f;
 
     [Tooltip("Correccion de giro del modelo al mirar a la maquina. Tiene que "
              + "ser 0: el resto del script gira con LookRotation a secas y el "

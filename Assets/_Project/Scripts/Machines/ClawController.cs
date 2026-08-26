@@ -427,6 +427,18 @@ public class ClawController : MonoBehaviour
 
     private bool IsNPCTurn { get { return activeCarrySpot != null; } }
 
+    // Con que mando se juega esta partida. Un solo sitio que lo decida, para
+    // que no se pueda cobrar con uno y agarrar con el otro.
+    private float MandoEnUso
+    {
+        get
+        {
+            if (fingerMotors == null) return 0f;
+
+            return IsNPCTurn ? fingerMotors.ajusteNPC : fingerMotors.ajuste;
+        }
+    }
+
     private float currentVelX = 0f;
     private float currentVelZ = 0f;
 
@@ -1225,11 +1237,16 @@ public class ClawController : MonoBehaviour
             // Como una maquina de verdad: la placa decide cuanta corriente le da
             // al motor en esta partida. Casi siempre poca.
             int racha = fingerMotors.jugadasSinPremio;
-            float par = fingerMotors.ParaEstaPartida();
+
+            // Cada uno con su mando. Los npc juegan con el suyo, mas generoso:
+            // una sala donde nadie gana nunca no parece una sala.
+            float mando = MandoEnUso;
+            float par = fingerMotors.ParaEstaPartida(mando);
 
             Debug.Log(string.Format(
-                "[Garra] Partida {0} sin premio: {1:F3} Nm (techo {2:F3}, mando {3:F0}%)",
-                racha, par, fingerMotors.TechoActual, fingerMotors.ajuste * 100f));
+                "[Garra] Partida {0} sin premio: {1:F3} Nm (techo {2:F3}, mando {3:F0}%{4})",
+                racha, par, fingerMotors.TechoDe(mando), mando * 100f,
+                IsNPCTurn ? ", npc" : ""));
         }
 
         if (useRealisticGripPhysics)
@@ -1344,7 +1361,7 @@ public class ClawController : MonoBehaviour
                 // rozamiento, que es lo que se merece.
                 bool bienCogido = heldPlushRb != null && CierreSuficiente();
                 bool mandoAlto = fingerMotors != null
-                                 && fingerMotors.ajuste >= agarreSeguroDesde;
+                                 && MandoEnUso >= agarreSeguroDesde;
 
                 if (bienCogido && mandoAlto)
                 {
