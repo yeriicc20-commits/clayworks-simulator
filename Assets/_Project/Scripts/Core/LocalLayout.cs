@@ -25,6 +25,15 @@ public class LocalLayout : MonoBehaviour
     public string westSouthName = "Pared_Oeste_Sur";
     public string floorName = "Suelo_Interior";
     public string containerName = "Local_Ampliaciones";
+    public string ceilingName = "Local_Techo";
+
+    [Header("Techo")]
+
+    [Tooltip("Si no, el local se queda abierto por arriba como antes.")]
+    public bool conTecho = true;
+
+    [Tooltip("A que altura va. En 0 se saca de lo alto que sea la pared.")]
+    public float ceilingHeight = 0f;
 
     [Tooltip("Cuanto se mete el suelo por debajo de las paredes.")]
     public float floorOverlap = 0.4f;
@@ -50,6 +59,7 @@ public class LocalLayout : MonoBehaviour
     private Transform root;
     private Transform east, north, south, westSouth, floor;
     private Transform container;
+    private Transform ceiling;
 
     private float wallThickness = 0.5f;
     private Zone baseZone;
@@ -252,6 +262,13 @@ public class LocalLayout : MonoBehaviour
             east.gameObject.SetActive(true);
             north.gameObject.SetActive(true);
             south.gameObject.SetActive(true);
+
+            // Sin ampliaciones tambien hay techo: es solo el del local de
+            // partida.
+            zones.Clear();
+            zones.Add(baseZone);
+
+            BuildCeiling();
             return;
         }
 
@@ -290,6 +307,10 @@ public class LocalLayout : MonoBehaviour
         }
 
         FitBaseFloor(level > 0);
+
+        // Despues de FitBaseFloor a proposito: el techo de la sala de partida
+        // se copia del suelo, y ahi el suelo ya esta ajustado a su zona.
+        BuildCeiling();
 
         if (NavMeshBaker.Instance != null) NavMeshBaker.Instance.Rebuild();
     }
@@ -428,6 +449,96 @@ public class LocalLayout : MonoBehaviour
         tr.localRotation = floor.localRotation;
 
         Retile(tr);
+    }
+
+    // El techo, una copia del suelo puesta arriba y del reves.
+    //
+    // Copiado del suelo y no hecho aparte para que sea "igual que el suelo"
+    // de verdad: mismo material, mismo tiling y mismas medidas. Y asi una
+    // ampliacion levanta su techo por el mismo camino por el que pone su
+    // suelo, sin nada que se pueda olvidar de actualizar.
+    void BuildCeiling()
+    {
+        // Se rehace entero. Buscando tambien por nombre, que despues de
+        // recompilar la referencia se pierde pero el objeto sigue en la
+        // escena, y si no saldrian dos techos superpuestos.
+        if (ceiling != null) Destroy(ceiling.gameObject);
+
+        Transform viejo = Find(ceilingName);
+        if (viejo != null) Destroy(viejo.gameObject);
+
+        ceiling = null;
+
+        if (!conTecho || floor == null || zones.Count == 0) return;
+
+        GameObject holder = new GameObject(ceilingName);
+        ceiling = holder.transform;
+        ceiling.SetParent(root, false);
+
+        float y = CeilingY();
+
+        for (int i = 0; i < zones.Count; i++) CeilingPiece(zones[i], i, y);
+    }
+
+    // Lo alto que sea la pared: su centro mas media altura es justo el borde
+    // de arriba, que es donde tiene que apoyar el techo.
+    float CeilingY()
+    {
+        if (ceilingHeight > 0f) return ceilingHeight;
+
+        Transform pared = east != null ? east : north;
+
+        if (pared == null) return floor.localPosition.y + 3f;
+
+        return pared.localPosition.y + pared.localScale.y * 0.5f;
+    }
+
+    void CeilingPiece(Zone z, int index, float y)
+    {
+        GameObject go = Instantiate(floor.gameObject, ceiling);
+        go.name = "Techo_Zona";
+        go.SetActive(true);
+
+        Transform tr = go.transform;
+
+        // La sala de partida copia el suelo tal cual, que es la unica forma de
+        // que cuadren al milimetro. Las ampliaciones se sacan de su recuadro,
+        // igual que hace BuildFloor.
+        if (index == 0)
+        {
+            tr.localPosition = new Vector3(floor.localPosition.x, y, floor.localPosition.z);
+            tr.localScale = floor.localScale;
+        }
+        else
+        {
+            tr.localPosition = new Vector3((z.x0 + z.x1) * 0.5f, y, (z.z0 + z.z1) * 0.5f);
+
+            tr.localScale = new Vector3(
+                (z.Width + floorOverlap) / 10f,
+                floor.localScale.y,
+                (z.Depth + floorOverlap) / 10f);
+        }
+
+        // Un Plane mira hacia arriba. Dado la vuelta mira hacia abajo, que es
+        // de donde se ve un techo: sin voltearlo no se veria nada desde dentro.
+        tr.localRotation = floor.localRotation * Quaternion.Euler(180f, 0f, 0f);
+
+        NoHagasSombra(go);
+        Retile(tr);
+    }
+
+    // El techo se ve, pero no tapa la luz.
+    //
+    // En la escena hay UNA luz y es direccional. Un techo que proyecte sombra
+    // deja el local entero a oscuras de golpe, que no es lo que nadie pide al
+    // pedir un techo. Sin proyectar, la luz sigue entrando igual que hasta
+    // ahora y el techo se ve por debajo con la luz de ambiente.
+    static void NoHagasSombra(GameObject go)
+    {
+        foreach (Renderer r in go.GetComponentsInChildren<Renderer>(true))
+        {
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
     }
 
     // Con ampliaciones el suelo original se ajusta justo a su zona: si sobresale
