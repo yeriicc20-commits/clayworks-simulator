@@ -625,7 +625,10 @@ MonoBehaviour:
   sprintSpeed: 7
   gravity: -9.81
   cameraTransform: {fileID: 1767070651}
-  mouseSensitivity: 2
+  crouchKeyAlt: 99
+  crouchHeight: 0.45
+  crouchSpeed: 0.45
+  crouchLerp: 10
 --- !u!143 &285598232
 CharacterController:
   m_ObjectHideFlags: 0
@@ -2007,7 +2010,7 @@ MonoBehaviour:
   items:
   - itemName: Maquina de gancho
     price: 400
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: dbebd2e6a12ae00408d7209f22d9cd48, type: 3}
     boxPrefab: {fileID: 97584205571, guid: 4c64493b371caedfb30633e00aea39eb, type: 3}
     machinePrefab: {fileID: 5192221986323269747, guid: fff801a4c5d788b448b689768b8775a0, type: 3}
   - itemName: LA PINZA XL
@@ -2037,7 +2040,7 @@ MonoBehaviour:
   - itemName: Aguacate
     price: 55
     icon: {fileID: 0}
-    toyPrefab: {fileID: 0}
+    toyPrefab: {fileID: 675721808300653372, guid: 7cbd0e2b7763c5d4f9a8092c64894921, type: 3}
     boxToyCount: 10
     boxPrefab: {fileID: 0}
   spawnPoint: {fileID: 9600011417368}
@@ -2045,6 +2048,7 @@ MonoBehaviour:
   itemsContainer: {fileID: 2124879219}
   itemCardPrefab: {fileID: 7003124304064987321, guid: 53edf1260e75c2b448e987e819c3cd53, type: 3}
   convexVertexLimit: 255
+  radioEntrega: 3.5
 --- !u!114 &1584250899
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2059,6 +2063,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NotificationManager
   notificationText: {fileID: 181783477}
   displayDuration: 2
+  margen: {x: 28, y: 28}
+  ancho: 330
+  fuente: 17
+  fundido: 0.18
 --- !u!114 &1584250900
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3631,8 +3639,6 @@ MonoBehaviour:
   dayDurationSeconds: 420
   startHour: 8
   endHour: 21
-  openKey: 111
-  closeKey: 13
   playerStartPoint: {fileID: 0}
   movePlayerAtDayStart: 1
   lineRevealDelay: 0.28
