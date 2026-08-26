@@ -51,7 +51,7 @@ public class PelucheRecogible : MonoBehaviour
 
         if (!FirstPersonController.IsCrouching)
         {
-            Avisar("Agachate (" + FirstPersonController.TeclaAgacharse + ") para coger el peluche");
+            Avisar("Agachate (Ctrl o C) para coger el peluche");
             return;
         }
 

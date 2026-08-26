@@ -10,16 +10,23 @@ public class FirstPersonController : MonoBehaviour
     public float mouseSensitivity = 2f;
 
     [Header("Agacharse")]
-    // C y no Control.
+    public KeyCode crouchKey = KeyCode.LeftControl;
+
+    [Tooltip("Segunda tecla para lo mismo. Existe por el editor, no por el "
+             + "juego.")]
+    public KeyCode crouchKeyAlt = KeyCode.C;
+
+    // Valen las dos, y Control es la principal.
     //
-    // Control choca con el editor: andar hacia atras es S, asi que agacharse
-    // mientras retrocedes es literalmente Ctrl+S, o sea "guardar escena". En
-    // modo juego Unity contesta con un cartel enorme de "You must exit play mode
-    // to save the scene!" tapando media pantalla, y ademas parecia un fallo del
-    // juego cuando no lo era.
+    // Le quite Control por mi cuenta y no debi hacerlo: andar hacia atras es S,
+    // asi que agacharse retrocediendo es literalmente Ctrl+S, y en modo juego
+    // Unity contesta con un cartel de "You must exit play mode to save the
+    // scene!". Pero eso es cosa del EDITOR: en una build compilada no pasa
+    // nunca, y Control es donde la busca cualquiera.
     //
-    // C esta libre en todo el proyecto y es donde la busca cualquiera.
-    public KeyCode crouchKey = KeyCode.C;
+    // Asi que se queda Control, y C es la salida para quien este probando
+    // dentro del editor y le moleste el cartel. No hay forma de callar ese
+    // atajo desde el juego: lo atiende Unity antes que nadie.
 
     [Tooltip("Que fraccion de su altura mide agachado.")]
     [Range(0.3f, 0.9f)] public float crouchHeight = 0.45f;
@@ -103,7 +110,7 @@ public class FirstPersonController : MonoBehaviour
         if (controller == null || standHeight <= 0.01f) return;
 
         TeclaAgacharse = crouchKey;
-        IsCrouching = Input.GetKey(crouchKey);
+        IsCrouching = Input.GetKey(crouchKey) || Input.GetKey(crouchKeyAlt);
 
         float objetivo = IsCrouching ? standHeight * crouchHeight : standHeight;
 
