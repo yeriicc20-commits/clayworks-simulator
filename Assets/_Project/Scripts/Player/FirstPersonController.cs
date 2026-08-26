@@ -7,10 +7,11 @@ public class FirstPersonController : MonoBehaviour
     public float gravity = -9.81f;
 
     public Transform cameraTransform;
-    public float mouseSensitivity = 2f;
+
+    // La tecla principal la elige el jugador en el menu de ajustes.
+    static KeyCode crouchKey { get { return AjustesControles.Tecla(AjustesControles.Accion.Agacharse); } }
 
     [Header("Agacharse")]
-    public KeyCode crouchKey = KeyCode.LeftControl;
 
     [Tooltip("Segunda tecla para lo mismo. Existe por el editor, no por el "
              + "juego.")]
@@ -110,7 +111,7 @@ public class FirstPersonController : MonoBehaviour
         if (controller == null || standHeight <= 0.01f) return;
 
         TeclaAgacharse = crouchKey;
-        IsCrouching = Input.GetKey(crouchKey) || Input.GetKey(crouchKeyAlt);
+        IsCrouching = AjustesControles.Pulsada(AjustesControles.Accion.Agacharse) || Input.GetKey(crouchKeyAlt);
 
         float objetivo = IsCrouching ? standHeight * crouchHeight : standHeight;
 
@@ -136,8 +137,14 @@ public class FirstPersonController : MonoBehaviour
 
     void HandleMouseLook()
     {
-        float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
-        float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
+        // La sensibilidad sale del menu de ajustes y se lee cada fotograma:
+        // moviendo la barra se nota el cambio sin cerrar la pantalla.
+        float sens = AjustesJuego.Sensibilidad;
+
+        float mouseX = Input.GetAxis("Mouse X") * sens;
+        float mouseY = Input.GetAxis("Mouse Y") * sens;
+
+        if (AjustesJuego.InvertirY) mouseY = -mouseY;
 
         transform.Rotate(Vector3.up * mouseX);
 
@@ -148,14 +155,25 @@ public class FirstPersonController : MonoBehaviour
 
     void HandleMovement()
     {
-        float moveX = Input.GetAxisRaw("Horizontal");
-        float moveZ = Input.GetAxisRaw("Vertical");
+        // Teclas sueltas, y no los ejes "Horizontal" y "Vertical" de Unity.
+        //
+        // Esos ejes son WASD fijos: se configuran en los ajustes del proyecto
+        // y no hay manera de cambiarlos desde el juego. Con una pantalla de
+        // controles delante eso seria mentir, asi que se leen las teclas que
+        // tenga puestas cada uno.
+        //
+        // Leyendolas asi tampoco hace falta zona muerta: una tecla esta
+        // pulsada o no lo esta, no hay valores a medias que filtrar.
+        float moveX = 0f;
+        float moveZ = 0f;
 
-        float deadzone = 0.5f;
-        if (Mathf.Abs(moveX) < deadzone) moveX = 0f;
-        if (Mathf.Abs(moveZ) < deadzone) moveZ = 0f;
+        if (AjustesControles.Pulsada(AjustesControles.Accion.Derecha)) moveX += 1f;
+        if (AjustesControles.Pulsada(AjustesControles.Accion.Izquierda)) moveX -= 1f;
+        if (AjustesControles.Pulsada(AjustesControles.Accion.Adelante)) moveZ += 1f;
+        if (AjustesControles.Pulsada(AjustesControles.Accion.Atras)) moveZ -= 1f;
 
-        bool isSprinting = Input.GetKey(KeyCode.LeftShift) && !IsCrouching;
+        bool isSprinting = AjustesControles.Pulsada(AjustesControles.Accion.Correr)
+                           && !IsCrouching;
         float currentSpeed = isSprinting ? sprintSpeed : walkSpeed;
 
         if (IsCrouching) currentSpeed *= crouchSpeed;

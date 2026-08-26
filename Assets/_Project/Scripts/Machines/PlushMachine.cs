@@ -9,7 +9,7 @@ public class PlushMachine : MonoBehaviour
 
     void Update()
     {
-        if (playerInRange && Input.GetKeyDown(KeyCode.E))
+        if (playerInRange && AjustesControles.Pulsando(AjustesControles.Accion.Usar))
         {
             TryPlay();
         }

@@ -63,7 +63,7 @@ public abstract class CarriableBox : MonoBehaviour
         bool busy = PlayerCarry.Busy;
         ShowPrompt(busy ? PlayerCarry.BusyMessage : "Pulsa E para coger la caja");
 
-        if (!busy && Input.GetKeyDown(KeyCode.E)) Pickup();
+        if (!busy && AjustesControles.Pulsando(AjustesControles.Accion.Usar)) Pickup();
     }
 
     void Pickup()

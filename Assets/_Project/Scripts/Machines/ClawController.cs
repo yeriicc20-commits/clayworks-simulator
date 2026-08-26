@@ -670,7 +670,8 @@ public class ClawController : MonoBehaviour
     {
         // GetKeyDown solo es fiable en Update: en FixedUpdate se pierden
         // pulsaciones cuando el fotograma dura mas que el paso de fisica.
-        if (isControllable && !isBusy && Input.GetKeyDown(KeyCode.Space))
+        if (isControllable && !isBusy && !CursorMode.FreeCursor
+            && AjustesControles.Pulsando(AjustesControles.Accion.BajarGarra))
         {
             StartCoroutine(GrabSequence());
         }
@@ -1177,13 +1178,19 @@ public class ClawController : MonoBehaviour
 
     void HandleMovement()
     {
+        // Con una pantalla abierta el teclado es suyo.
+        //
+        // Sin esto, reasignando las teclas de la garra en los ajustes, cada
+        // tecla que pruebas mueve la garra de la maquina que tienes delante.
+        if (CursorMode.FreeCursor) return;
+
         float inputX = 0f;
         float inputZ = 0f;
 
-        if (Input.GetKey(KeyCode.L)) inputX = 1f;
-        if (Input.GetKey(KeyCode.J)) inputX = -1f;
-        if (Input.GetKey(KeyCode.I)) inputZ = 1f;
-        if (Input.GetKey(KeyCode.K)) inputZ = -1f;
+        if (AjustesControles.Pulsada(AjustesControles.Accion.GarraDerecha)) inputX = 1f;
+        if (AjustesControles.Pulsada(AjustesControles.Accion.GarraIzquierda)) inputX = -1f;
+        if (AjustesControles.Pulsada(AjustesControles.Accion.GarraAdelante)) inputZ = 1f;
+        if (AjustesControles.Pulsada(AjustesControles.Accion.GarraAtras)) inputZ = -1f;
 
         if (invertX) inputX *= -1f;
         if (invertZ) inputZ *= -1f;

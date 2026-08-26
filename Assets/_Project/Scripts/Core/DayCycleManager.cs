@@ -23,9 +23,11 @@ public class DayCycleManager : MonoBehaviour
     public int startHour = 8;
     public int endHour = 21;
 
-    [Header("Teclas")]
-    public KeyCode openKey = KeyCode.O;
-    public KeyCode closeKey = KeyCode.Return;
+    // Las teclas ya no son campos: las elige el jugador en el menu de
+    // ajustes. Se dejan como propiedades con el mismo nombre para que todo
+    // lo que las usa siga leyendose igual, carteles de ayuda incluidos.
+    static KeyCode openKey { get { return AjustesControles.Tecla(AjustesControles.Accion.AbrirLocal); } }
+    static KeyCode closeKey { get { return AjustesControles.Tecla(AjustesControles.Accion.CerrarLocal); } }
 
     [Header("Jugador")]
     [Tooltip("Donde aparece el jugador cada manana. Vacio = donde empezo la partida.")]
@@ -115,7 +117,7 @@ public class DayCycleManager : MonoBehaviour
         ShowingSummary = false;
 
         UpdateClockUI();
-        SetHint("Dia " + CurrentDay + " - Pulsa " + openKey + " para abrir el local");
+        SetHint("Dia " + CurrentDay + " - Pulsa " + AjustesControles.NombreTecla(openKey) + " para abrir el local");
     }
 
     void Update()
@@ -124,7 +126,7 @@ public class DayCycleManager : MonoBehaviour
         {
             // La primera pulsacion termina de mostrar el resumen, la segunda
             // pasa de dia. Asi no se salta sin querer con un doble Enter.
-            if (Input.GetKeyDown(closeKey))
+            if (AjustesControles.Pulsando(AjustesControles.Accion.CerrarLocal))
             {
                 if (revealing) RevealEverything();
                 else CloseSummary();
@@ -135,7 +137,7 @@ public class DayCycleManager : MonoBehaviour
 
         if (!DayRunning && !DayFinished)
         {
-            if (Input.GetKeyDown(openKey)) OpenShop();
+            if (AjustesControles.Pulsando(AjustesControles.Accion.AbrirLocal)) OpenShop();
             return;
         }
 
@@ -152,14 +154,14 @@ public class DayCycleManager : MonoBehaviour
                 // Se cierra: no entra nadie mas y los que quedan dentro se van.
                 NPCClawPlayer.SendEveryoneHome();
 
-                SetHint("Cierre - Pulsa " + closeKey + " para terminar el dia");
+                SetHint("Cierre - Pulsa " + AjustesControles.NombreTecla(closeKey) + " para terminar el dia");
             }
 
             UpdateClockUI();
             return;
         }
 
-        if (DayFinished && Input.GetKeyDown(closeKey))
+        if (DayFinished && AjustesControles.Pulsando(AjustesControles.Accion.CerrarLocal))
         {
             ShowSummary();
         }
@@ -295,7 +297,7 @@ public class DayCycleManager : MonoBehaviour
         summaryLines.Add("");
         summaryLines.Add(UnhappyLine(record.unhappyCustomers));
         summaryLines.Add("");
-        summaryLines.Add("<size=20>Pulsa " + closeKey + " para empezar el dia " + (record.day + 1) + "</size>");
+        summaryLines.Add("<size=20>Pulsa " + AjustesControles.NombreTecla(closeKey) + " para empezar el dia " + (record.day + 1) + "</size>");
     }
 
     static string UnhappyLine(int count)

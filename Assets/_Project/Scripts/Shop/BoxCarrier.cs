@@ -13,13 +13,16 @@ public class BoxCarrier : MonoBehaviour
     public float heldScale = 0.35f;
 
     [Header("Controles")]
-    public KeyCode useKey = KeyCode.E;
     [Tooltip("Boton del raton para dejar la caja en el suelo. 0 = izquierdo.")]
     public int dropMouseButton = 0;
 
-    [Header("Lanzar")]
-    public KeyCode throwKey = KeyCode.Q;
+    // Las teclas ya no son campos: las elige el jugador en el menu de
+    // ajustes. Se dejan como propiedades con el mismo nombre para que todo
+    // lo que las usa siga leyendose igual, carteles de ayuda incluidos.
+    static KeyCode useKey { get { return AjustesControles.Tecla(AjustesControles.Accion.Usar); } }
+    static KeyCode throwKey { get { return AjustesControles.Tecla(AjustesControles.Accion.Lanzar); } }
 
+    [Header("Lanzar")]
     [Tooltip("Cuanto hay que mantener la tecla para llegar al maximo.")]
     public float cargaCompleta = 1.4f;
 
@@ -141,17 +144,17 @@ public class BoxCarrier : MonoBehaviour
 
         if (IsDeploying)
         {
-            ShowHint("Clic izquierdo para colocar - " + useKey + " para guardarlo en la caja");
+            ShowHint("Clic izquierdo para colocar - " + AjustesControles.NombreTecla(useKey) + " para guardarlo en la caja");
 
-            if (Input.GetKeyDown(useKey)) PlacementManager.Instance.CancelPlacement();
+            if (AjustesControles.Pulsando(AjustesControles.Accion.Usar)) PlacementManager.Instance.CancelPlacement();
             return;
         }
 
         if (IsPlacingBox)
         {
-            ShowHint("Clic izquierdo para dejar la caja aqui - " + useKey + " para volver a cogerla");
+            ShowHint("Clic izquierdo para dejar la caja aqui - " + AjustesControles.NombreTecla(useKey) + " para volver a cogerla");
 
-            if (Input.GetKeyDown(useKey)) PlacementManager.Instance.CancelPlacement();
+            if (AjustesControles.Pulsando(AjustesControles.Accion.Usar)) PlacementManager.Instance.CancelPlacement();
             return;
         }
 
@@ -160,25 +163,25 @@ public class BoxCarrier : MonoBehaviour
         // se colaba en mitad de la carga y te quedabas apuntando sin caja.
         if (Cargando()) return;
 
-        ShowHint(carried.CarryHint + " - manten " + throwKey + " para lanzarla");
+        ShowHint(carried.CarryHint + " - manten " + AjustesControles.NombreTecla(throwKey) + " para lanzarla");
 
         // La caja tiene prioridad: si consume el clic (meter peluches en una
         // maquina) no se interpreta como dejarla en el suelo.
         if (carried.HandleCarryInput(this)) return;
 
-        if (Input.GetKeyDown(useKey)) carried.OnUseKey(this);
+        if (AjustesControles.Pulsando(AjustesControles.Accion.Usar)) carried.OnUseKey(this);
         else if (Input.GetMouseButtonDown(dropMouseButton)) Drop();
     }
 
     // Devuelve true mientras se esta apuntando el tiro.
     bool Cargando()
     {
-        if (Input.GetKey(throwKey))
+        if (AjustesControles.Pulsada(AjustesControles.Accion.Lanzar))
         {
             carga = Mathf.Min(carga + Time.deltaTime, cargaCompleta);
 
             MedidorFuerza.Mostrar(carga / cargaCompleta);
-            ShowHint("Suelta " + throwKey + " para lanzar la caja");
+            ShowHint("Suelta " + AjustesControles.NombreTecla(throwKey) + " para lanzar la caja");
 
             return true;
         }

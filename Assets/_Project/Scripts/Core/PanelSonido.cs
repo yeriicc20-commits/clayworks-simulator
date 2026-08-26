@@ -11,7 +11,8 @@ public class PanelSonido : MonoBehaviour
     public static PanelSonido Instance;
     public static bool IsOpen { get { return Instance != null && Instance.abierto; } }
 
-    public KeyCode tecla = KeyCode.F1;
+    // La tecla la elige el jugador en el menu de ajustes.
+    static KeyCode tecla { get { return AjustesControles.Tecla(AjustesControles.Accion.Sonido); } }
     public float paso = 0.05f;
 
     RectTransform panel;
@@ -44,7 +45,7 @@ public class PanelSonido : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(tecla))
+        if (AjustesControles.Pulsando(AjustesControles.Accion.Sonido))
         {
             if (abierto) Cerrar();
             else Abrir();
@@ -124,7 +125,8 @@ public class PanelSonido : MonoBehaviour
         UIFactory.Height(titulo.rectTransform, 44f);
 
         var ayuda = UIFactory.Text("Ayuda", panel,
-                                   "F1 o Escape para cerrar", 18, UIFactory.Muted,
+                                   AjustesControles.NombreTecla(tecla)
+                                   + " o Escape para cerrar", 18, UIFactory.Muted,
                                    TextAlignmentOptions.Left);
         UIFactory.Height(ayuda.rectTransform, 26f);
 

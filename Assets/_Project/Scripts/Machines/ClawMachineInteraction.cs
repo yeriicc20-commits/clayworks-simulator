@@ -7,8 +7,11 @@ public class ClawMachineInteraction : MonoBehaviour
     [Tooltip("Precio de partida si la maquina no tiene MachinePricing.")]
     public float cost = 5f;
 
-    [Header("Ajustar precio")]
-    public KeyCode priceKey = KeyCode.P;
+    // Las teclas ya no son campos: las elige el jugador en el menu de
+    // ajustes. Se dejan como propiedades con el mismo nombre para que todo
+    // lo que las usa siga leyendose igual, carteles de ayuda incluidos.
+    static KeyCode priceKey { get { return AjustesControles.Tecla(AjustesControles.Accion.Precios); } }
+    static KeyCode useKey { get { return AjustesControles.Tecla(AjustesControles.Accion.Usar); } }
 
     private bool playerInRange = false;
     private MachinePricing pricing;
@@ -39,9 +42,11 @@ public class ClawMachineInteraction : MonoBehaviour
         if (clawController.isControllable || clawController.IsBusy) return;
 
         InteractionUI.Prompt(
-            "E: jugar (" + GameManager.Format(Price) + ")   ·   " + priceKey + ": cambiar precio");
+            AjustesControles.NombreTecla(useKey) + ": jugar ("
+            + GameManager.Format(Price) + ")   ·   "
+            + AjustesControles.NombreTecla(priceKey) + ": cambiar precio");
 
-        if (Input.GetKeyDown(KeyCode.E)) TryPay();
+        if (AjustesControles.Pulsando(AjustesControles.Accion.Usar)) TryPay();
         else if (Input.GetKeyDown(priceKey)) OpenPricePanel();
     }
 

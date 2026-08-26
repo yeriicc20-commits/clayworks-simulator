@@ -35,10 +35,14 @@ public class PelucheEnMano : MonoBehaviour
     [Tooltip("Grados de giro por unidad de raton.")]
     public float sensibilidadGiro = 220f;
 
-    [Header("Tirarlo y venderlo")]
-    public KeyCode teclaLanzar = KeyCode.Q;
-    public KeyCode teclaVender = KeyCode.V;
+    // Las teclas ya no son campos: las elige el jugador en el menu de
+    // ajustes. Se dejan como propiedades con el mismo nombre para que todo
+    // lo que las usa siga leyendose igual, carteles de ayuda incluidos.
+    static KeyCode teclaLanzar { get { return AjustesControles.Tecla(AjustesControles.Accion.Lanzar); } }
+    static KeyCode teclaVender { get { return AjustesControles.Tecla(AjustesControles.Accion.Vender); } }
+    static KeyCode teclaSoltar { get { return AjustesControles.Tecla(AjustesControles.Accion.Soltar); } }
 
+    [Header("Tirarlo y venderlo")]
     [Tooltip("Cuanto hay que mantener la tecla para llegar al maximo.")]
     public float cargaCompleta = 1.2f;
 
@@ -140,12 +144,12 @@ public class PelucheEnMano : MonoBehaviour
     // Devuelve true mientras se esta apuntando el tiro.
     bool Cargando()
     {
-        if (Input.GetKey(teclaLanzar))
+        if (AjustesControles.Pulsada(AjustesControles.Accion.Lanzar))
         {
             carga = Mathf.Min(carga + Time.deltaTime, cargaCompleta);
 
             MedidorFuerza.Mostrar(carga / cargaCompleta);
-            InteractionUI.Prompt("Suelta " + teclaLanzar + " para tirar el peluche");
+            InteractionUI.Prompt("Suelta " + AjustesControles.NombreTecla(teclaLanzar) + " para tirar el peluche");
 
             return true;
         }
@@ -257,13 +261,16 @@ public class PelucheEnMano : MonoBehaviour
             // hace ninguna otra cosa con el peluche.
             if (Cargando()) return;
 
-            InteractionUI.Prompt("Clic central para mirarlo - " + teclaLanzar
-                                 + " para tirarlo - " + teclaVender
+            InteractionUI.Prompt("Clic central para mirarlo - "
+                                 + AjustesControles.NombreTecla(teclaLanzar)
+                                 + " para tirarlo - "
+                                 + AjustesControles.NombreTecla(teclaVender)
                                  + " para venderlo por " + sostenido.precioVenta
-                                 + " - G para dejarlo");
+                                 + " - " + AjustesControles.NombreTecla(teclaSoltar)
+                                 + " para dejarlo");
 
-            if (Input.GetKeyDown(teclaVender)) Vender();
-            else if (Input.GetKeyDown(KeyCode.G)) Soltar();
+            if (AjustesControles.Pulsando(AjustesControles.Accion.Vender)) Vender();
+            else if (AjustesControles.Pulsando(AjustesControles.Accion.Soltar)) Soltar();
 
             return;
         }
