@@ -468,12 +468,11 @@ public class LocalLayout : MonoBehaviour
         Retile(tr);
     }
 
-    // El techo, una copia del suelo puesta arriba y del reves.
+    // El techo: una losa por sala, con la textura del suelo.
     //
-    // Copiado del suelo y no hecho aparte para que sea "igual que el suelo"
-    // de verdad: mismo material, mismo tiling y mismas medidas. Y asi una
-    // ampliacion levanta su techo por el mismo camino por el que pone su
-    // suelo, sin nada que se pueda olvidar de actualizar.
+    // Se levanta por el mismo camino por el que se pone el suelo, y por eso
+    // una ampliacion trae el suyo sin que haya un segundo sitio que se pueda
+    // olvidar de actualizar.
     void BuildCeiling()
     {
         // Se rehace entero. Buscando tambien por nombre, que despues de
@@ -519,61 +518,97 @@ public class LocalLayout : MonoBehaviour
         return pared.localPosition.y + pared.localScale.y * 0.5f;
     }
 
+    // Una losa con grosor, no una lamina.
+    //
+    // Se clona una PARED y no el suelo, aunque lleve la textura del suelo. El
+    // suelo es un Plane: una lamina sin canto, que vista desde el borde no
+    // existe y desde arriba se ve por la cara de atras. Una pared es un cubo
+    // con su grosor, su collider de caja y su canto, que es lo que se espera de
+    // un techo cuando se mira desde el hueco de una ampliacion.
+    //
+    // Del suelo se toma solo lo que hace falta: el material y cada cuantos
+    // metros repite la textura.
     void CeilingPiece(Zone z, int index, float y)
     {
-        GameObject go = Instantiate(floor.gameObject, ceiling);
+        Transform plantilla = east != null ? east : north;
+        if (plantilla == null) return;
+
+        GameObject go = Instantiate(plantilla.gameObject, ceiling);
         go.name = "Techo_Zona";
         go.SetActive(true);
 
         Transform tr = go.transform;
 
-        // La sala de partida copia el suelo tal cual, que es la unica forma de
-        // que cuadren al milimetro. Las ampliaciones se sacan de su recuadro,
-        // igual que hace BuildFloor.
+        float ancho, fondo, cx, cz;
+
         if (index == 0)
         {
-            tr.localPosition = new Vector3(floor.localPosition.x, y, floor.localPosition.z);
-            tr.localScale = floor.localScale;
+            // La sala de partida se saca del suelo, que es la unica forma de que
+            // cuadren al milimetro. Un Plane mide 10 x 10 con escala 1, de ahi
+            // el por diez.
+            ancho = floor.localScale.x * 10f;
+            fondo = floor.localScale.z * 10f;
+            cx = floor.localPosition.x;
+            cz = floor.localPosition.z;
         }
         else
         {
-            tr.localPosition = new Vector3((z.x0 + z.x1) * 0.5f, y, (z.z0 + z.z1) * 0.5f);
-
-            tr.localScale = new Vector3(
-                (z.Width + floorOverlap) / 10f,
-                floor.localScale.y,
-                (z.Depth + floorOverlap) / 10f);
+            ancho = z.Width + floorOverlap;
+            fondo = z.Depth + floorOverlap;
+            cx = (z.x0 + z.x1) * 0.5f;
+            cz = (z.z0 + z.z1) * 0.5f;
         }
 
-        // Un Plane mira hacia arriba. Dado la vuelta mira hacia abajo, que es
-        // de donde se ve un techo: sin voltearlo no se veria nada desde dentro.
-        tr.localRotation = floor.localRotation * Quaternion.Euler(180f, 0f, 0f);
+        // Apoyada ENCIMA de la pared: su cara de abajo queda justo al borde de
+        // arriba del muro, asi que por dentro el techo esta a la altura de la
+        // pared y el grosor sobresale por fuera, como en un edificio.
+        tr.localPosition = new Vector3(cx, y + wallThickness * 0.5f, cz);
+        tr.localScale = new Vector3(ancho, wallThickness, fondo);
+        tr.localRotation = Quaternion.identity;
 
+        PintarComoElSuelo(go);
         Sombra(go);
-        Retile(tr);
+
+        // UV por cara y medidas en metros, igual que las paredes: sin esto el
+        // canto de medio metro ensenaria la misma textura que la cara entera y
+        // saldria aplastada.
+        BoxWallMesh.Attach(tr, MetrosDeBaldosa());
+    }
+
+    void PintarComoElSuelo(GameObject go)
+    {
+        Renderer suelo = floor != null ? floor.GetComponent<Renderer>() : null;
+        if (suelo == null || suelo.sharedMaterial == null) return;
+
+        foreach (Renderer r in go.GetComponentsInChildren<Renderer>(true))
+        {
+            r.sharedMaterial = suelo.sharedMaterial;
+        }
+    }
+
+    float MetrosDeBaldosa()
+    {
+        TileTextureByScale t = floor != null
+            ? floor.GetComponent<TileTextureByScale>()
+            : null;
+
+        return t != null ? t.metersPerTile : wallMetersPerTile;
     }
 
     // El techo tapa la luz, y por eso dentro se hace de noche.
     //
     // En la escena hay UNA luz y es direccional, asi que el techo la corta
-    // entera: el local se queda a oscuras. Eso es lo que se busca -- un sitio
-    // cerrado se ve cerrado -- pero conviene saber de donde viene, porque el
-    // dia que parezca demasiado oscuro lo que hay que hacer no es quitar la
-    // sombra, sino poner luces dentro.
+    // entera. Eso es lo que se busca -- un sitio cerrado se ve cerrado -- pero
+    // conviene saber de donde viene: el dia que parezca demasiado oscuro lo que
+    // hay que hacer no es quitar la sombra, sino poner luces dentro.
+    //
+    // Siendo una caja basta con la sombra normal. Cuando era una lamina volteada
+    // hacia falta pedirla a dos caras, porque Unity descarta las caras traseras
+    // al dibujar el mapa de sombras y la unica que tenia miraba al suelo.
     void Sombra(GameObject go)
     {
-        // A dos caras, y no simplemente "encendida".
-        //
-        // El techo es un Plane volteado para que se vea desde abajo, asi que
-        // su cara buena mira al suelo y la de atras al cielo. Al dibujar el
-        // mapa de sombras Unity mira desde la luz y descarta las caras
-        // traseras, con lo que el techo no proyectaba NADA: estaba puesto, se
-        // veia oscuro por debajo, y aun asi el sol seguia entrando y las
-        // paredes seguian iluminadas.
-        //
-        // A dos caras proyecta mire hacia donde mire.
         var modo = techoDaSombra
-            ? UnityEngine.Rendering.ShadowCastingMode.TwoSided
+            ? UnityEngine.Rendering.ShadowCastingMode.On
             : UnityEngine.Rendering.ShadowCastingMode.Off;
 
         foreach (Renderer r in go.GetComponentsInChildren<Renderer>(true))
