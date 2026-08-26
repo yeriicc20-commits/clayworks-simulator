@@ -28,8 +28,8 @@ public class NPCManosMaquina : MonoBehaviour
     [Tooltip("Hasta cuanto puede pasarse del alcance antes de rendirse, en\nveces la longitud del brazo.")]
     [Range(1f, 1.6f)] public float margenAlcance = 1.30f;
 
-    [Tooltip("Cuanto se inclina el cuerpo sobre la consola, como maximo.")]
-    [Range(0f, 40f)] public float inclinacionTorso = 26f;
+    [Tooltip("Cuanto se dobla el cuerpo sobre la consola en total, como\nmaximo. Se reparte entre la cintura y media espalda.")]
+    [Range(0f, 70f)] public float inclinacionTorso = 46f;
 
     [Tooltip("Lo que tarda en meter la moneda.")]
     public float duracionMoneda = 1.1f;
@@ -55,7 +55,7 @@ public class NPCManosMaquina : MonoBehaviour
 
     Transform hombroIz, codoIz, manoIz;
     Transform hombroDe, codoDe, manoDe;
-    Transform torso;
+    Transform torso, cintura;
 
     float agachado = 0f;
     bool yaAvisado = false;
@@ -184,10 +184,17 @@ public class NPCManosMaquina : MonoBehaviour
         codoDe = Hueso("RightForeArm");
         manoDe = Hueso("RightHand");
 
-        // Para inclinarse sobre la consola. Spine1 esta a media espalda, que
-        // es donde dobla una persona al asomarse a un mando bajo.
+        // Para asomarse a la consola hacen falta los dos.
+        //
+        // Doblando solo por media espalda no llega: son unos 0,35 m de hueso,
+        // asi que 26 grados adelantan el hombro 15 cm y al mando le faltan 29.
+        // La cintura tiene medio metro por delante y da casi el doble, y
+        // ademas repartir el doblez entre las dos parece apoyarse en la
+        // maquina en vez de una reverencia.
+        cintura = Hueso("Spine");
         torso = Hueso("Spine1");
-        if (torso == null) torso = Hueso("Spine");
+
+        if (torso == null) torso = cintura;
 
         if (hombroIz != null && hombroDe != null) return;
 
@@ -413,9 +420,10 @@ public class NPCManosMaquina : MonoBehaviour
 
         Debug.LogWarning("[Manos] El mando le queda a " + falta.ToString("0.00")
                          + " m y el brazo mide " + brazo.ToString("0.00")
-                         + " m, asi que no llega ni inclinandose. Sube"
-                         + " inclinacionTorso o baja npcStandDistance en la"
-                         + " maquina.", this);
+                         + " m: le faltan " + (falta - brazo).ToString("0.00")
+                         + " m y no llega ni doblandose. Acercar al NPC no vale,"
+                         + " que el radio del agente son 0,35 m y ya esta pegado"
+                         + " al limite del NavMesh: sube inclinacionTorso.", this);
     }
 
     // Se asoma a la consola cuando el mando le queda alto de mas... o bajo.
@@ -448,9 +456,22 @@ public class NPCManosMaquina : MonoBehaviour
         Vector3 eje = Vector3.Cross(Vector3.up, hacia.normalized);
         if (eje.sqrMagnitude < 1e-6f) return;
 
+        eje.Normalize();
+
         float grados = agachado * inclinacionTorso;
 
-        torso.rotation = Quaternion.AngleAxis(grados, eje.normalized) * torso.rotation;
+        // Mas por la cintura que por la espalda: es la que tiene medio metro
+        // hasta el hombro y por tanto la que de verdad lo acerca. Doblando
+        // arriba se encorva y adelanta poco.
+        if (cintura != null && cintura != torso)
+        {
+            cintura.rotation = Quaternion.AngleAxis(grados * 0.6f, eje) * cintura.rotation;
+            torso.rotation = Quaternion.AngleAxis(grados * 0.4f, eje) * torso.rotation;
+        }
+        else
+        {
+            torso.rotation = Quaternion.AngleAxis(grados, eje) * torso.rotation;
+        }
     }
 
     // De 0 a 1: 0 si llega de sobra, 1 si le falta medio brazo o mas.
