@@ -56,6 +56,33 @@ public static class PelucheBuilder
                 { "Panxeta_Negro",      new Color(0.06f, 0.06f, 0.07f) },
             },
         },
+
+        new Peluche
+        {
+            nombre = "Aguacate_Toy",
+            fbx = "Assets/_Project/Models/Aguacate.fbx",
+            peso = PlushItem.WeightCategory.Medio,
+
+            // Los brazos cuelgan, igual que las orejas de Panxeta. Son
+            // munones cortos cosidos al costado: es justo lo que el sistema
+            // de cable sabe hacer.
+            partesBlandas = new[] { "Brazo_Izq", "Brazo_Der" },
+            tienda = "Aguacate",
+            colores = new Dictionary<string, Color>
+            {
+                // Los mismos valores que en Blender. La piel MUCHO mas oscura
+                // que la carne: en la foto es lo que separa la cascara del
+                // relleno, y con los dos verdes parecidos deja de leerse como
+                // un aguacate abierto.
+                { "Aguacate_Piel",    new Color(0.22f, 0.38f, 0.10f) },
+                { "Aguacate_Carne",   new Color(0.69f, 0.80f, 0.36f) },
+                { "Aguacate_Hueso",   new Color(0.30f, 0.13f, 0.08f) },
+                { "Aguacate_Marron",  new Color(0.30f, 0.18f, 0.10f) },
+                { "Aguacate_Negro",   new Color(0.06f, 0.06f, 0.07f) },
+                { "Aguacate_Rosa",    new Color(0.90f, 0.55f, 0.58f) },
+                { "Aguacate_Blanco",  new Color(0.97f, 0.97f, 0.95f) },
+            },
+        },
     };
 
     // Igual que la maquina: el prefab se rehace solo cuando cambia el modelo o
