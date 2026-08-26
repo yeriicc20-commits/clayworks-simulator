@@ -164,6 +164,13 @@ public class ClawController : MonoBehaviour
 
     private bool bajando = false;
 
+    // Verdadero desde que la garra se posa hasta que acaba la partida.
+    private bool giroFrenado = false;
+
+    [Tooltip("Lo deprisa que se le va el giro al posarse sobre el peluche. "
+             + "Alto = se para casi en seco.")]
+    public float frenadoGiro = 12f;
+
     public float slipExtraCloseAngle = 15f;
     public float slipCloseSpeed = 40f;
 
@@ -915,6 +922,21 @@ public class ClawController : MonoBehaviour
         Vector3 aceleracion = (velocidadCarro - velCarroPrevia) / dt;
         velCarroPrevia = velocidadCarro;
 
+        // Posada sobre el peluche: se le va el giro y se queda donde esta.
+        //
+        // No se pone a cero de golpe ni se devuelve al centro. Un giro que se
+        // corta en seco se ve como un salto, y devolverlo al centro seria la
+        // garra girando SOLA justo cuando tendria que estar quieta, que es lo
+        // contrario de lo que se pide. Se frena y se queda mirando donde
+        // llego, como algo que se apoya.
+        if (giroFrenado)
+        {
+            velGiro *= Mathf.Exp(-dt * frenadoGiro);
+            giroActual += velGiro * dt;
+
+            return;
+        }
+
         float remueve = (aceleracion.x * sesgoGiro.x + aceleracion.z * sesgoGiro.y)
                         * sensibilidadGiro;
 
@@ -1278,6 +1300,15 @@ public class ClawController : MonoBehaviour
         yield return MoveArmDownUntilPlushContact();
         bajando = false;
 
+        // Ya se ha posado: deja de retorcerse.
+        //
+        // Mientras baja, la garra cuelga del cable y se retuerce sola, que es
+        // lo que se pidio. Pero en cuanto toca el peluche ya no cuelga de
+        // nada: se apoya. Y algo apoyado no sigue girando sobre su eje.
+        // Ademas, si siguiera girando mientras cierra, los dedos entrarian
+        // barriendo de lado en vez de bajar rectos sobre el peluche.
+        giroFrenado = true;
+
         if (audio3d != null) audio3d.Alarma(false);
 
 
@@ -1544,6 +1575,7 @@ public class ClawController : MonoBehaviour
         // siguiente empezaria torcida sin que nada la hubiera movido.
         giroActual = 0f;
         velGiro = 0f;
+        giroFrenado = false;
 
         isBusy = false;
         isControllable = false;

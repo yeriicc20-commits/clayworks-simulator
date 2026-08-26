@@ -682,6 +682,7 @@ public static class MaquinaGarraBuilder
         claw.giroMaximo = 55f;
         claw.sensibilidadGiro = 22f;
         claw.giroInicial = 120f;
+        claw.frenadoGiro = 12f;
         audio3d.musica      = Sonido("Musica_Arcade");
 
         claw.audio3d = audio3d;
