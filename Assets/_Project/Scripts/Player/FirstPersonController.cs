@@ -10,7 +10,16 @@ public class FirstPersonController : MonoBehaviour
     public float mouseSensitivity = 2f;
 
     [Header("Agacharse")]
-    public KeyCode crouchKey = KeyCode.LeftControl;
+    // C y no Control.
+    //
+    // Control choca con el editor: andar hacia atras es S, asi que agacharse
+    // mientras retrocedes es literalmente Ctrl+S, o sea "guardar escena". En
+    // modo juego Unity contesta con un cartel enorme de "You must exit play mode
+    // to save the scene!" tapando media pantalla, y ademas parecia un fallo del
+    // juego cuando no lo era.
+    //
+    // C esta libre en todo el proyecto y es donde la busca cualquiera.
+    public KeyCode crouchKey = KeyCode.C;
 
     [Tooltip("Que fraccion de su altura mide agachado.")]
     [Range(0.3f, 0.9f)] public float crouchHeight = 0.45f;
@@ -22,6 +31,10 @@ public class FirstPersonController : MonoBehaviour
 
     // Lo consultan los objetos que se recogen agachandose.
     public static bool IsCrouching { get; private set; }
+
+    // Y la tecla, para que el aviso de pantalla la diga sin tenerla escrita
+    // dos veces: cambiarla aqui cambia tambien lo que pone el cartel.
+    public static KeyCode TeclaAgacharse { get; private set; }
 
     // Bloquea SOLO el giro de camara, no el movimiento ni el raton.
     //
@@ -71,6 +84,7 @@ public class FirstPersonController : MonoBehaviour
 
     void HandleCrouch()
     {
+        TeclaAgacharse = crouchKey;
         IsCrouching = Input.GetKey(crouchKey);
 
         float objetivo = IsCrouching ? standHeight * crouchHeight : standHeight;
