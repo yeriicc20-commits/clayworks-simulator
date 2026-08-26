@@ -63,6 +63,7 @@ public class LocalLayout : MonoBehaviour
     private Transform east, north, south, westSouth, floor;
     private Transform container;
     private Transform ceiling;
+    private bool contado = false;
 
     private float wallThickness = 0.5f;
     private Zone baseZone;
@@ -494,6 +495,15 @@ public class LocalLayout : MonoBehaviour
         float y = CeilingY();
 
         for (int i = 0; i < zones.Count; i++) CeilingPiece(zones[i], i, y);
+
+        // Una linea y una sola vez. Sin ella, "no hay techo" y "el techo esta
+        // pero no se ve" son el mismo sintoma, y ya me costo una vuelta.
+        if (contado) return;
+        contado = true;
+
+        Debug.Log("[Local] Techo puesto: " + zones.Count + " tramo(s) a "
+                  + y.ToString("0.00") + " m, sombra "
+                  + (techoDaSombra ? "SI" : "NO") + ".", this);
     }
 
     // Lo alto que sea la pared: su centro mas media altura es justo el borde
@@ -552,8 +562,18 @@ public class LocalLayout : MonoBehaviour
     // sombra, sino poner luces dentro.
     void Sombra(GameObject go)
     {
+        // A dos caras, y no simplemente "encendida".
+        //
+        // El techo es un Plane volteado para que se vea desde abajo, asi que
+        // su cara buena mira al suelo y la de atras al cielo. Al dibujar el
+        // mapa de sombras Unity mira desde la luz y descarta las caras
+        // traseras, con lo que el techo no proyectaba NADA: estaba puesto, se
+        // veia oscuro por debajo, y aun asi el sol seguia entrando y las
+        // paredes seguian iluminadas.
+        //
+        // A dos caras proyecta mire hacia donde mire.
         var modo = techoDaSombra
-            ? UnityEngine.Rendering.ShadowCastingMode.On
+            ? UnityEngine.Rendering.ShadowCastingMode.TwoSided
             : UnityEngine.Rendering.ShadowCastingMode.Off;
 
         foreach (Renderer r in go.GetComponentsInChildren<Renderer>(true))
