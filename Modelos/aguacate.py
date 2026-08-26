@@ -191,11 +191,19 @@ def construir():
                                      math.radians(52.0), carne)))
 
     # --- el hueso -----------------------------------------------------------
-    # Este SI abulta, y a proposito: en la foto se le ve el bulto y la sombra
-    # alrededor. Es un trozo de tela relleno cosido encima, no un dibujo.
+    # Media bola: la mitad dentro del cuerpo y la mitad fuera.
+    #
+    # Por eso su centro va EXACTAMENTE sobre la piel, ni un milimetro por
+    # delante. Estaba 8 mm afuera, y con eso sobresalia mas de dos tercios: se
+    # veia una pelota pegada al aguacate en vez de un hueso metido en la carne.
+    #
+    # Y redondo de verdad, mismo ancho que alto. Antes era un ovalo un poco mas
+    # alto que ancho, que es lo que hace un huevo, no un hueso.
     hueso_z = 0.078
-    piezas.append(p.bulto("Hueso", (0.064, 0.032, 0.070),
-                          (0.0, -radio(hueso_z) * ACHATADO - 0.008, hueso_z),
+    centro = en_superficie(FRENTE, hueso_z)
+
+    piezas.append(p.bulto("Hueso", (0.066, 0.022, 0.066),
+                          (centro.x, centro.y, hueso_z),
                           hueso, segmentos=26))
 
     # --- la cara ------------------------------------------------------------
