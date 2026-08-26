@@ -10,6 +10,10 @@ public class NPCClawPlayer : MonoBehaviour
     public Transform carryPoint;
     public Animator animator;
 
+    // Las manos en los mandos. No hace falta ponerlo en el prefab: se anade
+    // solo, que asi vale igual para los NPC que ya estuvieran colocados.
+    NPCManosMaquina manos;
+
     public int cost = 5;
 
     public float moveSpeed = 1.2f;
@@ -168,6 +172,10 @@ public class NPCClawPlayer : MonoBehaviour
 
     void ReleaseMachine()
     {
+        // Que suelte los mandos pase lo que pase: tambien si se va a casa a
+        // media partida porque cierra el local.
+        if (manos != null) manos.Soltar();
+
         if (reservedMachine == null) return;
 
         if (reservedMachine.activeCarrySpot == carryPoint) reservedMachine.activeCarrySpot = null;
@@ -226,6 +234,9 @@ public class NPCClawPlayer : MonoBehaviour
         {
             animator = GetComponentInChildren<Animator>();
         }
+
+        manos = GetComponent<NPCManosMaquina>();
+        if (manos == null) manos = gameObject.AddComponent<NPCManosMaquina>();
 
         if (!spawnPositionSet) spawnPosition = transform.position;
 
@@ -542,6 +553,9 @@ public class NPCClawPlayer : MonoBehaviour
 
         yield return new WaitForSeconds(waitBeforePlaying);
 
+        // Primero la moneda por la ranura, y despues ya las manos al mando.
+        if (manos != null) yield return manos.MeterMoneda(machine);
+
         bool keepTrying = true;
 
         while (keepTrying)
@@ -554,6 +568,11 @@ public class NPCClawPlayer : MonoBehaviour
             // Cada partida da un pellizco de experiencia a la tienda.
             LevelManager manager = LevelManager.EnsureExists();
             if (manager != null) manager.Add(manager.xpNpcPlays);
+
+            // Una mano al joystick y la otra al boton. Se pide en cada
+            // partida y no una sola vez: entre intento e intento las manos
+            // se sueltan, y hay que volver a ponerlas.
+            if (manos != null) manos.AlMando(machine);
 
             machine.activeCarrySpot = carryPoint;
 
