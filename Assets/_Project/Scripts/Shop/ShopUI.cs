@@ -20,12 +20,18 @@ public class ShopUI : MonoBehaviour
 
     public bool IsOpen { get; private set; }
 
-    private bool showingJuguetes = false;
+    // Que pestana se esta viendo. Con dos bastaba un bool; con tres ya no.
+    enum Pestana { Maquinas, Juguetes, Luces }
+
+    private Pestana pestana = Pestana.Maquinas;
+    private Button tabLucesButton;
 
     void Start()
     {
         if (tabMaquinasButton != null) tabMaquinasButton.onClick.AddListener(ShowMaquinas);
         if (tabJuguetesButton != null) tabJuguetesButton.onClick.AddListener(ShowJuguetes);
+
+        CrearPestanaLuces();
         if (backToMachinesButton != null) backToMachinesButton.gameObject.SetActive(false);
     }
 
@@ -41,9 +47,42 @@ public class ShopUI : MonoBehaviour
         RefreshCurrentTab();
     }
 
+    // La pestana de luces se clona de la de juguetes en vez de ponerla en la
+    // escena.
+    //
+    // Clonada sale con el mismo tipo de letra, el mismo tamano y el mismo
+    // fondo que las otras dos, y sigue igual el dia que se retoque el aspecto
+    // de la tienda. Puesta a mano en la escena habria que acordarse de tocar
+    // las tres cada vez.
+    void CrearPestanaLuces()
+    {
+        if (tabJuguetesButton == null || tabMaquinasButton == null) return;
+        if (tabLucesButton != null) return;
+
+        RectTransform arriba = tabMaquinasButton.GetComponent<RectTransform>();
+        RectTransform modelo = tabJuguetesButton.GetComponent<RectTransform>();
+
+        tabLucesButton = Instantiate(tabJuguetesButton, modelo.parent);
+        tabLucesButton.name = "Tab_Luces";
+
+        RectTransform r = tabLucesButton.GetComponent<RectTransform>();
+
+        // Debajo de juguetes, a la misma distancia que juguetes de maquinas:
+        // asi las tres quedan repartidas igual sin numeros a mano.
+        r.anchoredPosition = modelo.anchoredPosition
+                             + (modelo.anchoredPosition - arriba.anchoredPosition);
+
+        var texto = tabLucesButton.GetComponentInChildren<TMPro.TextMeshProUGUI>();
+        if (texto != null) texto.text = "LUCES";
+
+        tabLucesButton.onClick.RemoveAllListeners();
+        tabLucesButton.onClick.AddListener(ShowLuces);
+    }
+
     public void RefreshCurrentTab()
     {
-        if (showingJuguetes) ShowJuguetes();
+        if (pestana == Pestana.Luces) ShowLuces();
+        else if (pestana == Pestana.Juguetes) ShowJuguetes();
         else ShowMaquinas();
     }
 
@@ -72,7 +111,7 @@ public class ShopUI : MonoBehaviour
 
     public void ShowMaquinas()
     {
-        showingJuguetes = false;
+        pestana = Pestana.Maquinas;
 
         maquinasPanel.SetActive(true);
         juguetesPanel.SetActive(false);
@@ -81,16 +120,59 @@ public class ShopUI : MonoBehaviour
 
     public void ShowJuguetes()
     {
-        showingJuguetes = true;
+        pestana = Pestana.Juguetes;
 
+        AbrirPanelDeLista();
+        PopulateToyList();
+    }
+
+    public void ShowLuces()
+    {
+        pestana = Pestana.Luces;
+
+        AbrirPanelDeLista();
+        PopulateDecoList();
+    }
+
+    // Luces y juguetes comparten panel y contenedor: la lista se vacia y se
+    // vuelve a llenar en cada cambio, asi que no hacen falta dos.
+    void AbrirPanelDeLista()
+    {
         maquinasPanel.SetActive(false);
         juguetesPanel.SetActive(true);
 
         if (machineListContainer != null) machineListContainer.gameObject.SetActive(false);
         if (noMachinesText != null) noMachinesText.SetActive(false);
         if (toySelectionPanel != null) toySelectionPanel.SetActive(true);
+    }
 
-        PopulateToyList();
+    void PopulateDecoList()
+    {
+        foreach (Transform child in toyListContainer)
+        {
+            Destroy(child.gameObject);
+        }
+
+        DecoShopItem[] deco = ShopManager.Instance.decoItems;
+
+        FilaLista.PrepararLista(toyListContainer);
+
+        if (deco == null || deco.Length == 0)
+        {
+            NotificationManager.Nota("La pestana de luces esta vacia: pasa"
+                                     + " ClayWorks > Construir luces.");
+            return;
+        }
+
+        for (int i = 0; i < deco.Length; i++)
+        {
+            int index = i;
+
+            FilaLista.Crear(toyListContainer, i, deco[index].itemName,
+                            deco[index].icon, null, deco[index].price,
+                            "Anadir", new Color(0.15f, 0.62f, 0.35f),
+                            () => ShopManager.Instance.AddDecoToCart(index));
+        }
     }
 
     void PopulateToyList()

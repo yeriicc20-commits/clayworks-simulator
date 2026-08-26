@@ -25,6 +25,14 @@ public class PlacementManager : MonoBehaviour
     private Renderer[] ghostRenderers;
     private int placementStartedFrame = -1;
     private GameObject finalPrefab;
+    // Donde puede pegarse lo que se esta colocando.
+    //
+    // Viene con el objeto y no de aqui: una bombilla va en el techo la ponga
+    // quien la ponga. Sin regla, se comporta como siempre -- apoyado en algo
+    // que mire hacia arriba -- asi que nada de lo que ya existia cambia.
+    private ReglaDeColocacion regla;
+    private Vector3 surfaceNormal = Vector3.up;
+
     private bool isPlacing = false;
     private bool canPlace = false;
     private float currentYRotation = 0f;
@@ -168,6 +176,8 @@ public class PlacementManager : MonoBehaviour
         isPlacing = false;
 
         finalPrefab = prefabToPlace;
+        regla = prefabToPlace.GetComponent<ReglaDeColocacion>();
+
         ghostObject = Instantiate(prefabToPlace);
 
         MonoBehaviour[] scripts = ghostObject.GetComponentsInChildren<MonoBehaviour>();
@@ -301,14 +311,18 @@ public class PlacementManager : MonoBehaviour
         // Asi se puede dejar el ordenador encima del mostrador, no solo en el suelo.
         RaycastHit cameraHit;
         if (Physics.Raycast(cameraRay, out cameraHit, placeDistance, surfaceLayers, QueryTriggerInteraction.Ignore)
-            && cameraHit.normal.y >= minSurfaceUp)
+            && SuperficieVale(cameraHit.normal))
         {
             surfacePoint = cameraHit.point;
+            surfaceNormal = cameraHit.normal;
             foundSurface = true;
             onGround = IsInLayerMask(cameraHit.collider.gameObject.layer, groundLayer);
         }
 
-        if (!foundSurface)
+        // Buscar suelo debajo solo tiene sentido para lo que va en el suelo.
+        // Con una bombilla, este respaldo la bajaria al suelo cada vez que
+        // apuntases a un sitio que no es techo.
+        if (!foundSurface && EsDeSuelo)
         {
             Vector3 aimPoint = cameraRay.origin + cameraRay.direction * placeDistance;
             Vector3 groundCheckStart = new Vector3(aimPoint.x, aimPoint.y + 10f, aimPoint.z);
@@ -317,6 +331,7 @@ public class PlacementManager : MonoBehaviour
             if (Physics.Raycast(groundCheckStart, Vector3.down, out groundHit, 50f, groundLayer))
             {
                 surfacePoint = groundHit.point;
+                surfaceNormal = groundHit.normal;
                 foundSurface = true;
                 onGround = true;
             }
@@ -339,7 +354,9 @@ public class PlacementManager : MonoBehaviour
             return;
         }
 
-        surfacePoint = PushAwayFromPlayer(surfacePoint);
+        // Apartarlo del jugador solo aplica a lo que se deja en el suelo. Una
+        // bombilla en el techo no le estorba a nadie a los pies.
+        if (EsDeSuelo) surfacePoint = PushAwayFromPlayer(surfacePoint);
 
         // Rejilla solo en el suelo, y solo si esta activada: con gridSize a 0 la
         // colocacion es libre y sigue al raton sin dar saltos.
@@ -348,14 +365,43 @@ public class PlacementManager : MonoBehaviour
         float x = snap ? Mathf.Round(surfacePoint.x / gridSize) * gridSize : surfacePoint.x;
         float z = snap ? Mathf.Round(surfacePoint.z / gridSize) * gridSize : surfacePoint.z;
 
-        Quaternion desiredRotation = Quaternion.Euler(0f, currentYRotation, 0f);
-        Vector3 desiredBottomWorld = new Vector3(x, surfacePoint.y, z);
-        Vector3 rotatedBottomOffset = desiredRotation * ghostPivotToBottomLocal;
+        if (EsDeSuelo)
+        {
+            Quaternion desiredRotation = Quaternion.Euler(0f, currentYRotation, 0f);
+            Vector3 desiredBottomWorld = new Vector3(x, surfacePoint.y, z);
+            Vector3 rotatedBottomOffset = desiredRotation * ghostPivotToBottomLocal;
 
-        ghostObject.transform.rotation = desiredRotation;
-        ghostObject.transform.position = desiredBottomWorld - rotatedBottomOffset;
+            ghostObject.transform.rotation = desiredRotation;
+            ghostObject.transform.position = desiredBottomWorld - rotatedBottomOffset;
+        }
+        else
+        {
+            // En techo y pared el objeto se pega por su origen, no por su
+            // base: la bombilla esta modelada colgando desde la roseta, y el
+            // interruptor con la placa en su origen. Asi el punto que toca la
+            // superficie es el pivote, y no hay que calcular nada.
+            ghostObject.transform.rotation = regla.Orientacion(surfaceNormal,
+                                                              currentYRotation);
+            ghostObject.transform.position = surfacePoint
+                                             + surfaceNormal * regla.separacion;
+        }
 
         CheckPlacementValidity();
+    }
+
+    bool EsDeSuelo
+    {
+        get
+        {
+            return regla == null || regla.donde == ReglaDeColocacion.Donde.Suelo;
+        }
+    }
+
+    bool SuperficieVale(Vector3 normal)
+    {
+        if (regla == null) return normal.y >= minSurfaceUp;
+
+        return regla.Vale(normal, minSurfaceUp);
     }
 
     // Nunca a los pies del jugador: al reactivarse el collider lo despenetraria

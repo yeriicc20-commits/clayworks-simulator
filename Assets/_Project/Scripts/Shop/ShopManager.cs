@@ -11,6 +11,25 @@ public class ShopItem
     public GameObject machinePrefab;
 }
 
+// Lo que se cuelga del techo o de la pared: bombillas, interruptores.
+//
+// Ficha aparte y no una maquina mas porque no se juega con ellas ni dan
+// dinero: se colocan y ya. Meterlas entre las maquinas obligaria a que cada
+// sitio que recorre las maquinas se acordase de saltarselas.
+[System.Serializable]
+public class DecoShopItem
+{
+    public string itemName;
+    public int price;
+    public Sprite icon;
+
+    [Tooltip("Lo que acaba colocado en el local.")]
+    public GameObject itemPrefab;
+
+    [Tooltip("Caja en la que llega. Vacio = la mediana por defecto.")]
+    public GameObject boxPrefab;
+}
+
 [System.Serializable]
 public class ToyShopItem
 {
@@ -204,6 +223,52 @@ public class ShopManager : MonoBehaviour
         // Montar maquina nueva es lo que mas hace crecer la tienda.
         LevelManager levels = LevelManager.EnsureExists();
         if (levels != null) levels.Add(levels.xpMachineBought);
+    }
+
+    [Tooltip("Bombillas, interruptores y demas.")]
+    public DecoShopItem[] decoItems;
+
+    public void AddDecoToCart(int index)
+    {
+        DecoShopItem item = decoItems[index];
+
+        ShoppingCart.Instance.AddItem(item.itemName, item.price, item.icon,
+                                      (spawnIndex) => SpawnDecoBox(item, spawnIndex));
+    }
+
+    // Llega en caja y se coloca al abrirla, igual que una maquina. Es el
+    // mismo PickupBox de siempre: lo que lleva dentro es lo unico que cambia.
+    void SpawnDecoBox(DecoShopItem item, int spawnIndex)
+    {
+        Vector3 pos;
+        Quaternion rot;
+        GetDeliverySpot(spawnIndex, out pos, out rot);
+
+        GameObject prefab = item.boxPrefab != null ? item.boxPrefab : toyBoxPrefab;
+
+        if (prefab == null)
+        {
+            Debug.LogError("[ShopManager] \"" + item.itemName
+                           + "\" no tiene caja asignada.", this);
+            return;
+        }
+
+        GameObject box = Instantiate(prefab, pos, rot);
+
+        PickupBox pickup = box.GetComponent<PickupBox>();
+
+        if (pickup == null)
+        {
+            Debug.LogError("[ShopManager] La caja de \"" + item.itemName
+                           + "\" no lleva PickupBox: no se podria sacar lo de"
+                           + " dentro.", this);
+            Destroy(box);
+            return;
+        }
+
+        pickup.machinePrefab = item.itemPrefab;
+
+        Entregar(box, pos);
     }
 
     public void AddToyToCart(int index)
