@@ -153,7 +153,7 @@ public class ShopUI : MonoBehaviour
             Destroy(child.gameObject);
         }
 
-        DecoShopItem[] deco = ShopManager.Instance.decoItems;
+        DecoShopItem[] deco = ShopManager.Instance.Deco;
 
         FilaLista.PrepararLista(toyListContainer);
 

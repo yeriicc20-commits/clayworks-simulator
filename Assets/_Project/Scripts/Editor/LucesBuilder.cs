@@ -1,11 +1,8 @@
 using System.IO;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
-// Monta los prefabs de la bombilla y el interruptor a partir de sus FBX, y los
-// deja puestos en la tienda.
+// Monta los prefabs de la bombilla y el interruptor a partir de sus FBX.
 //
 // A mano seria arrastrar el modelo, anadirle la luz, ponerle el collider,
 // ajustar el alcance y acordarse de la regla de colocacion, y repetirlo cada vez
@@ -13,12 +10,38 @@ using UnityEngine.SceneManagement;
 public static class LucesBuilder
 {
     const string MODELOS = "Assets/_Project/Models/";
-    const string PREFABS = "Assets/_Project/Prefabs/Local/";
+    // En Resources, y esto es lo que hace que no haga falta guardar nada.
+    //
+    // Registrarlas en la tienda de la escena obliga a acordarse de guardar la
+    // escena, y si no se guarda la pestana sale vacia sin que nada diga por
+    // que. Desde Resources la tienda las carga por su cuenta al arrancar: si
+    // el prefab esta, se venden.
+    const string PREFABS = "Assets/_Project/Resources/Luces/";
 
     // La bombilla cuelga 0,335 m de la roseta. La luz se pone a esa altura y no
     // en el origen: naciendo en el techo, la propia bombilla se queda a oscuras
     // por debajo y las sombras salen al reves.
     const float CAIDA_LUZ = 0.30f;
+
+    // Solas al abrir Unity, y solo si faltan.
+    //
+    // Un paso manual que hay que recordar es un paso que un dia no se da, y
+    // entonces la pestana de luces sale vacia. Rehacerlas siempre seria
+    // reescribir dos prefabs en cada recompilacion, asi que solo si no estan.
+    [InitializeOnLoadMethod]
+    static void AlArrancar()
+    {
+        EditorApplication.delayCall += () =>
+        {
+            if (Falta("Bombilla") || Falta("Interruptor")) Construir();
+        };
+    }
+
+    static bool Falta(string nombre)
+    {
+        return AssetDatabase.LoadAssetAtPath<GameObject>(
+            PREFABS + nombre + ".prefab") == null;
+    }
 
     [MenuItem("ClayWorks/Construir luces", false, 5)]
     public static void Construir()
@@ -34,7 +57,10 @@ public static class LucesBuilder
 
         AssetDatabase.SaveAssets();
 
-        Registrar(bombilla, interruptor);
+        if (bombilla != null && interruptor != null)
+        {
+            Debug.Log("[Luces] Bombilla e interruptor listos y a la venta.");
+        }
     }
 
     // ------------------------------------------------------------- bombilla
@@ -178,79 +204,4 @@ public static class LucesBuilder
         return prefab;
     }
 
-    // --------------------------------------------------------- ponerlo a la venta
-
-    // Se registran en la tienda de la escena abierta.
-    //
-    // Si no, la pestana de luces sale vacia y no hay nada que diga por que: el
-    // prefab existe, el modelo existe, pero nadie los vende.
-    static void Registrar(GameObject bombilla, GameObject interruptor)
-    {
-        if (bombilla == null || interruptor == null) return;
-
-        ShopManager tienda = BuscarTienda();
-
-        if (tienda == null)
-        {
-            Debug.LogWarning("[Luces] No hay ShopManager en la escena abierta: los "
-                             + "prefabs estan hechos pero no se venden todavia.");
-            return;
-        }
-
-        tienda.decoItems = new DecoShopItem[]
-        {
-            Ficha("Bombilla", 45, bombilla, tienda),
-            Ficha("Interruptor", 25, interruptor, tienda),
-        };
-
-        EditorUtility.SetDirty(tienda);
-        EditorSceneManager.MarkSceneDirty(tienda.gameObject.scene);
-
-        Debug.Log("[Luces] Puestas a la venta. Guarda la escena para que se quede.");
-    }
-
-    static DecoShopItem Ficha(string nombre, int precio, GameObject prefab,
-                              ShopManager tienda)
-    {
-        DecoShopItem ficha = new DecoShopItem();
-
-        ficha.itemName = nombre;
-        ficha.price = precio;
-        ficha.itemPrefab = prefab;
-
-        // La caja de las maquinas, que es la que lleva PickupBox. La de juguetes
-        // lleva ToyBox y suelta peluches al abrirla, que no es lo que queremos.
-        ficha.boxPrefab = CajaDeMaquina(tienda);
-
-        return ficha;
-    }
-
-    static GameObject CajaDeMaquina(ShopManager tienda)
-    {
-        if (tienda.items == null) return null;
-
-        foreach (ShopItem it in tienda.items)
-        {
-            if (it != null && it.boxPrefab != null) return it.boxPrefab;
-        }
-
-        return null;
-    }
-
-    static ShopManager BuscarTienda()
-    {
-        for (int i = 0; i < SceneManager.sceneCount; i++)
-        {
-            Scene esc = SceneManager.GetSceneAt(i);
-            if (!esc.isLoaded) continue;
-
-            foreach (GameObject raiz in esc.GetRootGameObjects())
-            {
-                ShopManager s = raiz.GetComponentInChildren<ShopManager>(true);
-                if (s != null) return s;
-            }
-        }
-
-        return null;
-    }
 }

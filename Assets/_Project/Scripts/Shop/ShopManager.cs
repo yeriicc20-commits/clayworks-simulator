@@ -225,12 +225,82 @@ public class ShopManager : MonoBehaviour
         if (levels != null) levels.Add(levels.xpMachineBought);
     }
 
-    [Tooltip("Bombillas, interruptores y demas.")]
+    [Tooltip("Bombillas, interruptores y demas. Vacio = las de Resources.")]
     public DecoShopItem[] decoItems;
+
+    // Lo que se vende en la pestana de luces.
+    //
+    // Si la escena no trae nada, se cogen de Resources. Es la misma leccion
+    // que con los iconos de la tienda: un dato que solo existe si alguien se
+    // acuerda de pulsar Guardar no es un dato. Los prefabs los genera solo
+    // LucesBuilder, asi que con esto la pestana funciona sin tocar la escena.
+    //
+    // Y si algun dia quieres cambiar un precio o quitar una, rellena el array
+    // en la escena: lo que este puesto manda sobre lo de Resources.
+    public DecoShopItem[] Deco
+    {
+        get
+        {
+            if (decoItems != null && decoItems.Length > 0) return decoItems;
+            if (decoPorDefecto != null) return decoPorDefecto;
+
+            decoPorDefecto = CargarDeco();
+            return decoPorDefecto;
+        }
+    }
+
+    DecoShopItem[] decoPorDefecto;
+
+    DecoShopItem[] CargarDeco()
+    {
+        List<DecoShopItem> lista = new List<DecoShopItem>();
+
+        AnadirDeco(lista, "Bombilla", 45);
+        AnadirDeco(lista, "Interruptor", 25);
+
+        return lista.ToArray();
+    }
+
+    void AnadirDeco(List<DecoShopItem> lista, string nombre, int precio)
+    {
+        GameObject prefab = Resources.Load<GameObject>("Luces/" + nombre);
+
+        if (prefab == null)
+        {
+            Debug.LogWarning("[ShopManager] Falta el prefab de " + nombre
+                             + " en Resources/Luces. Pasa por ClayWorks >"
+                             + " Construir luces.", this);
+            return;
+        }
+
+        DecoShopItem ficha = new DecoShopItem();
+
+        ficha.itemName = nombre;
+        ficha.price = precio;
+        ficha.itemPrefab = prefab;
+
+        // La caja de las maquinas, que es la que lleva PickupBox. La de
+        // juguetes lleva ToyBox y al abrirla suelta peluches.
+        ficha.boxPrefab = CajaDeMaquina();
+
+        lista.Add(ficha);
+    }
+
+    GameObject CajaDeMaquina()
+    {
+        if (items == null) return toyBoxPrefab;
+
+        foreach (ShopItem it in items)
+        {
+            if (it != null && it.boxPrefab != null) return it.boxPrefab;
+        }
+
+        return toyBoxPrefab;
+    }
 
     public void AddDecoToCart(int index)
     {
-        DecoShopItem item = decoItems[index];
+        DecoShopItem item = Deco[index];
 
         ShoppingCart.Instance.AddItem(item.itemName, item.price, item.icon,
                                       (spawnIndex) => SpawnDecoBox(item, spawnIndex));
