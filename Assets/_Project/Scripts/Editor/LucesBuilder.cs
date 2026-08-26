@@ -18,10 +18,8 @@ public static class LucesBuilder
     // el prefab esta, se venden.
     const string PREFABS = "Assets/_Project/Resources/Luces/";
 
-    // La bombilla cuelga 0,335 m de la roseta. La luz se pone a esa altura y no
-    // en el origen: naciendo en el techo, la propia bombilla se queda a oscuras
-    // por debajo y las sombras salen al reves.
-    const float CAIDA_LUZ = 0.30f;
+    // El radio del bulbo, para colocar la luz dentro de el y no debajo.
+    const float RADIO_BULBO = 0.030f;
 
     // Solas al abrir Unity, y solo si faltan.
     //
@@ -73,16 +71,22 @@ public static class LucesBuilder
         GameObject raiz = Object.Instantiate(modelo);
         raiz.name = "Bombilla";
 
-        // Una luz de punto colgada donde esta el vidrio.
+        // La luz va DENTRO del bulbo, y su sitio se saca del propio modelo.
+        //
+        // Escrita a mano, el dia que se alargue el cable en Blender la luz se
+        // queda arriba y la bombilla baja sin ella. Midiendo el modelo, la luz
+        // va donde este el vidrio por largo que sea el cable.
         GameObject nodo = new GameObject("Luz");
         nodo.transform.SetParent(raiz.transform, false);
-        nodo.transform.localPosition = new Vector3(0f, -CAIDA_LUZ, 0f);
+        nodo.transform.localPosition = new Vector3(0f, FondoDe(raiz) + RADIO_BULBO, 0f);
 
         Light luz = nodo.AddComponent<Light>();
         luz.type = LightType.Point;
         luz.color = new Color(1f, 0.90f, 0.72f);
-        luz.intensity = 3.2f;
-        luz.range = 9f;
+        // Fuerte y de largo alcance: son 5 m de techo, y con el alcance corto
+        // la luz se apaga antes de llegar al suelo y solo se ve el techo.
+        luz.intensity = 4.5f;
+        luz.range = 16f;
 
         // Con sombras: sin ellas las maquinas no se apoyan en el suelo y todo
         // parece flotar, que es justo lo que delata a una luz falsa.
@@ -136,6 +140,27 @@ public static class LucesBuilder
     }
 
     // ------------------------------------------------------------- ayudantes
+
+    // Lo mas bajo del modelo, en coordenadas del propio objeto.
+    static float FondoDe(GameObject raiz)
+    {
+        float fondo = 0f;
+        bool alguno = false;
+
+        foreach (Renderer r in raiz.GetComponentsInChildren<Renderer>(true))
+        {
+            float y = raiz.transform.InverseTransformPoint(
+                new Vector3(0f, r.bounds.min.y, 0f)).y;
+
+            if (!alguno || y < fondo)
+            {
+                fondo = y;
+                alguno = true;
+            }
+        }
+
+        return fondo;
+    }
 
     static GameObject Cargar(string nombre)
     {

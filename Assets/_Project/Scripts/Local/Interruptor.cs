@@ -11,7 +11,7 @@ public class Interruptor : MonoBehaviour
     public float alcance = 2.2f;
 
     [Tooltip("Cuanto hay que estar mirandolo. 1 = justo al centro.")]
-    [Range(0.5f, 1f)] public float precisionMirada = 0.9f;
+    [Range(0.5f, 1f)] public float precisionMirada = 0.82f;
 
     [Tooltip("La tecla, que gira sobre su borde de abajo al pulsarla.")]
     public Transform tecla;
@@ -57,8 +57,15 @@ public class Interruptor : MonoBehaviour
         lado = encendidas ? -1f : 1f;
     }
 
-    // Cerca y mirandolo. Solo por distancia, dos interruptores en paredes
-    // opuestas de un pasillo estrecho responderian los dos a la vez.
+    // Cerca y mirandolo, y las dos cosas medidas desde el OJO.
+    //
+    // Antes la direccion salia de los pies del jugador y se comparaba con
+    // hacia donde mira la camara, que esta a metro y medio mas arriba. Con un
+    // interruptor a la altura del pecho esos dos vectores no coinciden nunca:
+    // la comprobacion no se cumplia jamas y el interruptor no hacia nada.
+    //
+    // Mirar y no solo estar cerca: en un pasillo estrecho, dos interruptores
+    // en paredes opuestas responderian los dos a la vez.
     bool AlAlcance()
     {
         if (jugador == null)
@@ -74,10 +81,17 @@ public class Interruptor : MonoBehaviour
 
         if (CursorMode.FreeCursor) return false;
 
-        Vector3 hacia = transform.position - jugador.position;
-        if (hacia.sqrMagnitude > alcance * alcance) return false;
-
         Transform camara = ojo != null ? ojo.transform : jugador;
+
+        // Al centro del interruptor y no a su origen, que esta en la placa
+        // pegada a la pared.
+        Vector3 centro = transform.position;
+
+        Collider caja = GetComponent<Collider>();
+        if (caja != null) centro = caja.bounds.center;
+
+        Vector3 hacia = centro - camara.position;
+        if (hacia.sqrMagnitude > alcance * alcance) return false;
 
         return Vector3.Dot(camara.forward, hacia.normalized) >= precisionMirada;
     }

@@ -2,9 +2,7 @@
 # Una bombilla colgando del techo, con su cable y su casquillo.
 #
 # Medidas de una A60 de verdad: bulbo de 60 mm y unos 110 de alto con el
-# casquillo. Cuelga 30 cm del techo, que a 5 m de altura la deja bien por
-# encima de la cabeza -- el jugador mide 1,8 -- pero lo bastante baja como para
-# que se lea que es una bombilla y no una mancha en el techo.
+# casquillo, colgando de su cable.
 #
 # El origen del modelo esta en la roseta, o sea en el punto que toca el techo.
 # Eso no es casual: al colocarla, ese es el punto que se pega a la superficie,
@@ -23,7 +21,13 @@ ROSETA_RADIO = 0.038
 ROSETA_ALTO = 0.014
 
 CABLE_RADIO = 0.0035
-CABLE_LARGO = 0.235
+# Cuelga metro y medio, y no un palmo.
+#
+# El techo esta a 5 m. Colgada 33 cm, la bombilla queda tan pegada al techo
+# que casi toda su luz se va ahi: se ve un foco enorme en el techo y la sala
+# debajo sigue a oscuras. A metro y medio queda a 3,5 del suelo -- por encima
+# de la cabeza, que el jugador mide 1,8 -- y reparte hacia abajo.
+CABLE_LARGO = 1.36
 
 CASQUILLO_RADIO = 0.0130
 CASQUILLO_ALTO = 0.026
