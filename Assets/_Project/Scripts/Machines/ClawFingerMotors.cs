@@ -83,11 +83,14 @@ public class ClawFingerMotors : MonoBehaviour
     [Range(0f, 1f)] public float ajuste = 0.35f;
 
     [Tooltip("El mismo mando, pero para cuando juega un npc.\n\n"
-             + "Alto a proposito: una sala donde nadie gana nunca no parece una "
-             + "sala, parece un decorado. Ver a otro llevarse un peluche es la "
-             + "mitad de la gracia de estar ahi, y ademas es lo que hace creer "
-             + "que se puede.")]
-    [Range(0f, 1f)] public float ajusteNPC = 0.85f;
+             + "Mas alto que el del jugador a proposito: una sala donde nadie "
+             + "gana nunca no parece una sala, parece un decorado.\n\n"
+             + "Pero NO tanto como para que ganen siempre. Con 0,85 el par les "
+             + "llega para aguantar cualquier peluche con dos dedos Y ademas "
+             + "les toca el agarre firme, asi que no fallarian ni una: una "
+             + "maquina que nunca suelta parece rota. Con 0,65 ganan mucho "
+             + "pero no siempre.")]
+    [Range(0f, 1f)] public float ajusteNPC = 0.65f;
 
     [Header("Progresion entre premios")]
     [Tooltip("A las cuantas partidas sin premio llega al maximo del motor. Es el "
