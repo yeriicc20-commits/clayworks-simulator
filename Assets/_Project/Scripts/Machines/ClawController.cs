@@ -390,6 +390,19 @@ public class ClawController : MonoBehaviour
     private Rigidbody carriageRb;
     private Rigidbody armRb;
     private float radioReposo = 0.1f;
+
+    // Lo que medía la boca justo antes de empezar a cerrar, en esta partida.
+    //
+    // Es la referencia contra la que se mide cuanto ha cerrado, y NO vale
+    // radioReposo para eso. radioReposo se toma en Start(), con los dedos en la
+    // pose con la que vienen del modelo, y ahi la boca son 251 mm. Pero la
+    // garra no descansa asi: descansa ABIERTA, en su tope, con 317.
+    //
+    // Midiendo contra los 251, cerrar de 317 a 239 salia como un 4,8% de
+    // cierre en vez del 25% que es. Nunca llegaba al 18% que se pide, asi que
+    // el agarre firme del mando alto no se activaba jamas por mucho que se
+    // pusiera el mando al maximo.
+    private float bocaAlEmpezar = 0f;
     private ConfigurableJoint cableJoint;
     private Vector3 cableAnchorLocal;
     private float cableBaseLength;
@@ -1334,7 +1347,25 @@ public class ClawController : MonoBehaviour
                 bool mandoAlto = fingerMotors != null
                                  && fingerMotors.ajuste >= agarreSeguroDesde;
 
-                if (bienCogido && mandoAlto) SujetarFirme(heldPlushRb);
+                if (bienCogido && mandoAlto)
+                {
+                    SujetarFirme(heldPlushRb);
+                }
+                else if (heldPlushRb != null)
+                {
+                    // Si sube con peluche y NO se le da el agarre firme, que se
+                    // sepa cual de las dos condiciones ha fallado. Es la
+                    // pregunta que se hace uno mirando la maquina.
+                    Debug.Log(string.Format(
+                        "[Garra] Sin agarre firme: {0}{1}. Sube solo con "
+                        + "rozamiento y se puede caer.",
+                        bienCogido ? "" : "no ha cerrado lo bastante",
+                        mandoAlto ? "" : (bienCogido ? "" : " y ")
+                                          + "el mando esta al "
+                                          + (fingerMotors.ajuste * 100f).ToString("F0")
+                                          + "%, hace falta "
+                                          + (agarreSeguroDesde * 100f).ToString("F0") + "%"));
+                }
 
                 jointExistsAfterAttempt = heldPlushRb != null;
 
@@ -1754,6 +1785,9 @@ public class ClawController : MonoBehaviour
     {
         float inicial = RadioGarra();
         float boca = inicial;
+
+        // Esta es la referencia buena para saber cuanto ha cerrado despues.
+        bocaAlEmpezar = inicial;
         float quieta = 0f;
         float total = 0f;
         float estrechada = 0f;
@@ -1849,15 +1883,20 @@ public class ClawController : MonoBehaviour
     // real se daba por perdido en pleno viaje.
     bool CierreSuficiente()
     {
-        if (!ConMotores || hingePoint == null || radioReposo <= 0.001f) return true;
+        if (!ConMotores || hingePoint == null) return true;
+
+        // Contra la boca de ESTA partida, no contra la del modelo.
+        float abierta = bocaAlEmpezar > 0.001f ? bocaAlEmpezar : radioReposo;
+
+        if (abierta <= 0.001f) return true;
 
         float boca = RadioGarra();
-        float cerrada = 1f - boca / radioReposo;
+        float cerrada = 1f - boca / abierta;
 
         Debug.Log(string.Format(
-            "[Garra] Boca {0:F0} mm de {1:F0} en reposo: cerrada al {2:P0} "
+            "[Garra] Boca {0:F0} mm de {1:F0} abierta: cerrada al {2:P0} "
             + "(hace falta {3:P0})",
-            boca * 2000f, radioReposo * 2000f, cerrada, cierreMinimoParaAgarrar));
+            boca * 2000f, abierta * 2000f, cerrada, cierreMinimoParaAgarrar));
 
         return cerrada >= cierreMinimoParaAgarrar;
     }
