@@ -29,7 +29,7 @@ public class NPCManosMaquina : MonoBehaviour
     [Range(1f, 1.6f)] public float margenAlcance = 1.30f;
 
     [Tooltip("Cuanto se dobla el cuerpo sobre la consola en total, como\nmaximo. Se reparte entre la cintura y media espalda.")]
-    [Range(0f, 70f)] public float inclinacionTorso = 46f;
+    [Range(0f, 70f)] public float inclinacionTorso = 26f;
 
     [Tooltip("Lo que tarda en meter la moneda.")]
     public float duracionMoneda = 1.1f;
