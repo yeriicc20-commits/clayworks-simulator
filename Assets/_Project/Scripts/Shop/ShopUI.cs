@@ -102,6 +102,8 @@ public class ShopUI : MonoBehaviour
 
         ToyShopItem[] toys = ShopManager.Instance.toyItems;
 
+        FilaLista.PrepararLista(toyListContainer);
+
         // Misma lista que las maquinas: las dos pestanas se leen igual.
         for (int i = 0; i < toys.Length; i++)
         {

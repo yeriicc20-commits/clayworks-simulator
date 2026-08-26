@@ -25,6 +25,46 @@ public static class FilaLista
     public const float ALTO = 58f;
     public const float FOTO = 46f;
 
+    // Deja el contenedor listo para una lista de verdad.
+    //
+    // Los contenedores de la escena llevan GridLayoutGroup, que reparte a los
+    // hijos en celdas de tamano fijo. Una fila de lista necesita el ANCHO
+    // entero: metida en una celda de 140 se queda con la foto y el nombre
+    // fuera y solo se ve el trozo del precio, que es exactamente como se veia.
+    //
+    // Se apaga la rejilla en vez de borrarla: si algun dia se quiere volver a
+    // tarjetas, esta ahi con sus medidas.
+    public static void PrepararLista(Transform contenedor)
+    {
+        if (contenedor == null) return;
+
+        GridLayoutGroup rejilla = contenedor.GetComponent<GridLayoutGroup>();
+        if (rejilla != null) rejilla.enabled = false;
+
+        HorizontalLayoutGroup fila = contenedor.GetComponent<HorizontalLayoutGroup>();
+        if (fila != null) fila.enabled = false;
+
+        VerticalLayoutGroup lista = contenedor.GetComponent<VerticalLayoutGroup>();
+        if (lista == null) lista = contenedor.gameObject.AddComponent<VerticalLayoutGroup>();
+
+        lista.enabled = true;
+        lista.spacing = 6f;
+        lista.padding = new RectOffset(10, 10, 10, 10);
+        lista.childAlignment = TextAnchor.UpperCenter;
+        lista.childControlWidth = true;
+        lista.childControlHeight = true;
+        lista.childForceExpandWidth = true;
+        lista.childForceExpandHeight = false;
+
+        // Que el contenedor crezca con las filas, para que el scroll sepa
+        // cuanto hay que recorrer.
+        ContentSizeFitter ajuste = contenedor.GetComponent<ContentSizeFitter>();
+        if (ajuste == null) ajuste = contenedor.gameObject.AddComponent<ContentSizeFitter>();
+
+        ajuste.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        ajuste.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+    }
+
     // Devuelve la fila para que quien la pida pueda colgarle mas cosas.
     public static RectTransform Crear(Transform padre, int indice, string nombre,
                                       Sprite icono, string cantidad, int precio,

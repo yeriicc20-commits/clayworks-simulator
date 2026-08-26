@@ -124,9 +124,21 @@ public static class IconosTienda
         Pendiente p = cola[0];
 
         Texture2D foto = AssetPreview.GetAssetPreview(p.prefab);
+        Texture2D copia = foto != null ? Copiar(foto) : null;
 
-        if (foto == null)
+        // Una miniatura vacia cuenta como no lista.
+        //
+        // GetAssetPreview devuelve a veces la textura antes de haberla
+        // terminado de dibujar, y guardarla deja un PNG transparente de 700
+        // bytes: en la tienda es un hueco gris, y como el archivo ya existe no
+        // se vuelve a intentar nunca. Le paso a la maquina de gancho.
+        //
+        // Las buenas pesan de 5 a 7 KB, o sea que la diferencia entre haber
+        // dibujado algo y no haber dibujado nada no es sutil.
+        if (copia == null || EnBlanco(copia))
         {
+            if (copia != null) Object.DestroyImmediate(copia);
+
             intentos++;
 
             // El previsualizador puede no tener nunca la imagen (un prefab sin
@@ -142,7 +154,7 @@ public static class IconosTienda
             return;
         }
 
-        Sprite sprite = Guardar(p.nombre, foto);
+        Sprite sprite = Guardar(p.nombre, copia);
 
         if (sprite != null)
         {
@@ -172,30 +184,53 @@ public static class IconosTienda
         tienda = null;
     }
 
-    static Sprite Guardar(string nombre, Texture2D foto)
+    // La textura del previsualizador no se puede leer directamente, asi que se
+    // copia pasando por una RenderTexture. Es el camino de siempre para sacar
+    // pixeles de algo que vive en la GPU.
+    static Texture2D Copiar(Texture2D origen)
+    {
+        RenderTexture rt = RenderTexture.GetTemporary(origen.width, origen.height, 0,
+                                                      RenderTextureFormat.ARGB32);
+
+        Graphics.Blit(origen, rt);
+
+        RenderTexture antes = RenderTexture.active;
+        RenderTexture.active = rt;
+
+        Texture2D copia = new Texture2D(origen.width, origen.height, TextureFormat.RGBA32, false);
+        copia.ReadPixels(new Rect(0, 0, origen.width, origen.height), 0, 0);
+        copia.Apply();
+
+        RenderTexture.active = antes;
+        RenderTexture.ReleaseTemporary(rt);
+
+        return copia;
+    }
+
+    // Se mira uno de cada cuatro pixeles: para saber si hay algo dibujado no
+    // hace falta contarlos todos, y esto corre en cada pasada.
+    static bool EnBlanco(Texture2D t)
+    {
+        Color32[] pix = t.GetPixels32();
+        int vistos = 0;
+        int pintados = 0;
+
+        for (int i = 0; i < pix.Length; i += 4)
+        {
+            vistos++;
+            if (pix[i].a > 25) pintados++;
+        }
+
+        // Un 2%: por debajo de eso no hay modelo, hay un borde suelto o ruido.
+        return vistos == 0 || pintados < vistos / 50;
+    }
+
+    static Sprite Guardar(string nombre, Texture2D copia)
     {
         // El nombre de archivo lo decide IconoTienda, que es quien luego lo
         // busca. Con la regla escrita en dos sitios, el dia que una cambie el
         // PNG existira y aun asi no se encontrara.
         string ruta = CARPETA + "/" + IconoTienda.Limpio(nombre) + ".png";
-
-        // La textura del previsualizador no se puede leer directamente, asi que
-        // se copia pasando por una RenderTexture. Es el camino de siempre para
-        // sacar pixeles de algo que vive en la GPU.
-        RenderTexture rt = RenderTexture.GetTemporary(foto.width, foto.height, 0,
-                                                      RenderTextureFormat.ARGB32);
-
-        Graphics.Blit(foto, rt);
-
-        RenderTexture antes = RenderTexture.active;
-        RenderTexture.active = rt;
-
-        Texture2D copia = new Texture2D(foto.width, foto.height, TextureFormat.RGBA32, false);
-        copia.ReadPixels(new Rect(0, 0, foto.width, foto.height), 0, 0);
-        copia.Apply();
-
-        RenderTexture.active = antes;
-        RenderTexture.ReleaseTemporary(rt);
 
         File.WriteAllBytes(ruta, copia.EncodeToPNG());
         Object.DestroyImmediate(copia);
@@ -207,6 +242,15 @@ public static class IconosTienda
         if (imp != null)
         {
             imp.textureType = TextureImporterType.Sprite;
+
+            // Single, y hay que decirlo.
+            //
+            // El proyecto importa por defecto en modo Multiple, y una textura
+            // en Multiple SIN sub-sprites recortados no produce ningun Sprite:
+            // Resources.Load<Sprite> devuelve null y la fila se queda con el
+            // hueco gris. El PNG estaba bien, pesaba lo suyo y se veia en la
+            // ventana de proyecto; lo que no habia era sprite que cargar.
+            imp.spriteImportMode = SpriteImportMode.Single;
             imp.alphaIsTransparency = true;
             imp.mipmapEnabled = false;
             imp.SaveAndReimport();

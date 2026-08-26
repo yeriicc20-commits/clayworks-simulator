@@ -109,6 +109,8 @@ public class ShopManager : MonoBehaviour
             Destroy(child.gameObject);
         }
 
+        FilaLista.PrepararLista(itemsContainer);
+
         // En lista y no en tarjetas.
         //
         // Una rejilla de tarjetas grandes esta bien con cuatro cosas; con

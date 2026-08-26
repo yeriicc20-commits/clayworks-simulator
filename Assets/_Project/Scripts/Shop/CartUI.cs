@@ -124,6 +124,8 @@ public class CartUI : MonoBehaviour
             Destroy(child.gameObject);
         }
 
+        FilaLista.PrepararLista(cartListContainer);
+
         int total = 0;
         int fila = 0;
 
