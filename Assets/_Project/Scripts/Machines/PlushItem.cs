@@ -125,7 +125,7 @@ public class PlushItem : MonoBehaviour
             // el cuerpo, aunque sea casi igual de larga.
             if (partes.Count > 1 && Volumen(b) < mayor * 0.2f) continue;
 
-            Esfera(b);
+            Bulto(b);
             puestos++;
         }
 
@@ -136,7 +136,7 @@ public class PlushItem : MonoBehaviour
             Bounds todo = partes[0];
             for (int i = 1; i < partes.Count; i++) todo.Encapsulate(partes[i]);
 
-            Esfera(todo);
+            Bulto(todo);
         }
     }
 
@@ -151,21 +151,63 @@ public class PlushItem : MonoBehaviour
     //
     // Una esfera encaja con la forma de un peluche y ademas rueda por encima de
     // sus vecinos hasta acomodarse, que es como se amontonan de verdad.
-    void Esfera(Bounds b)
+    // Esfera si la pieza es redondeada; capsula si es alargada.
+    //
+    // Con esfera y nada mas, una pieza alargada se queda MUY corta por su lado
+    // largo: el cuerpo del aguacate mide 240 mm de alto y su esfera 188, o sea
+    // 26 mm por arriba y otros 26 por abajo sin nada que los pare. Eso es lo
+    // que se veia atravesando el cristal de la maquina.
+    //
+    // Una capsula tumbada a lo largo de esa pieza la cubre entera y sigue
+    // siendo redonda por los costados, que es lo que hace que los peluches se
+    // acomoden unos sobre otros en vez de apoyarse en esquinas.
+    void Bulto(Bounds b)
     {
-        SphereCollider s = gameObject.AddComponent<SphereCollider>();
-        s.center = b.center;
+        Vector3 e = b.extents;
 
-        // El radio sale de la media de los tres semiejes, no del mayor ni del
-        // menor. Del mayor sobresaldria por los lados estrechos, y del menor
-        // quedaria un muneco de trapo dentro de una canica.
-        float medio = (b.extents.x + b.extents.y + b.extents.z) / 3f;
+        int largo = e.x >= e.y && e.x >= e.z ? 0 : (e.y >= e.z ? 1 : 2);
 
-        // Y encogido a proposito. Un peluche es blando: dejandolo justo a su
-        // silueta se ven separados, y encogiendolo se hunden un poco unos en
-        // otros, que es exactamente lo que hace un monton de peluches.
-        s.radius = medio * colliderShrink;
-        s.sharedMaterial = physicsMaterial;
+        float mayor = e[largo];
+        float otroA = e[(largo + 1) % 3];
+        float otroB = e[(largo + 2) % 3];
+
+        // Si el lado largo no destaca, es una pieza redondeada y la esfera de
+        // siempre le va bien. Es el caso de la cabeza y el cuerpo de Panxeta,
+        // que no cambian.
+        if (mayor < Mathf.Max(otroA, otroB) * 1.2f)
+        {
+            SphereCollider s = gameObject.AddComponent<SphereCollider>();
+            s.center = b.center;
+
+            // El radio sale de la media de los tres semiejes, no del mayor ni
+            // del menor. Del mayor sobresaldria por los lados estrechos, y del
+            // menor quedaria un muneco de trapo dentro de una canica.
+            float medio = (e.x + e.y + e.z) / 3f;
+
+            // Y encogido a proposito. Un peluche es blando: dejandolo justo a
+            // su silueta se ven separados, y encogiendolo se hunden un poco
+            // unos en otros, que es lo que hace un monton de peluches.
+            s.radius = medio * colliderShrink;
+            s.sharedMaterial = physicsMaterial;
+            return;
+        }
+
+        CapsuleCollider c = gameObject.AddComponent<CapsuleCollider>();
+        c.center = b.center;
+        c.direction = largo;
+
+        // El radio sale del MAYOR de los dos lados cortos, no de su media.
+        //
+        // Con la media, el peluche sigue asomando por su lado ancho, que es
+        // justo el fallo que se venia a arreglar. Sobrar un poco por el lado
+        // estrecho solo hace que no se arrime tanto a sus vecinos; quedarse
+        // corto por el ancho lo mete dentro del cristal.
+        c.radius = Mathf.Max(otroA, otroB) * colliderShrink;
+
+        // La altura incluye los dos casquetes: es el largo entero de la pieza.
+        c.height = mayor * 2f;
+
+        c.sharedMaterial = physicsMaterial;
     }
 
     static float Volumen(Bounds b)

@@ -21,7 +21,17 @@ using UnityEngine.SceneManagement;
 // pasadas, enganchado a EditorApplication.update, en vez de en un bucle.
 public static class IconosTienda
 {
-    const string CARPETA = "Assets/_Project/UI/Iconos";
+    // En Resources, y esto es el arreglo de fondo.
+    //
+    // Antes la foto se guardaba en el campo icon de la ficha, dentro de la
+    // escena. El generador la creaba y la asignaba, pero si la escena no se
+    // guardaba se perdia en la siguiente recarga: por eso no se veia ninguna.
+    // Un dato que solo existe si alguien se acuerda de pulsar Guardar no es
+    // un dato.
+    //
+    // Desde Resources se pide por nombre al usarlo y da igual lo que tenga
+    // guardado la escena: si el PNG esta, la foto sale.
+    const string CARPETA = "Assets/_Project/Resources/Iconos";
 
     class Pendiente
     {
@@ -60,7 +70,7 @@ public static class IconosTienda
         {
             foreach (ShopItem it in tienda.items)
             {
-                if (it == null || (!todos && it.icon != null)) continue;
+                if (it == null || (!todos && YaTiene(it.itemName))) continue;
 
                 // La maquina antes que la caja: lo que se compra es la maquina,
                 // y una foto de una caja de carton no distingue una de otra.
@@ -81,7 +91,7 @@ public static class IconosTienda
         {
             foreach (ToyShopItem it in tienda.toyItems)
             {
-                if (it == null || (!todos && it.icon != null)) continue;
+                if (it == null || (!todos && YaTiene(it.itemName))) continue;
                 if (it.toyPrefab == null) continue;
 
                 ToyShopItem guardado = it;
@@ -155,12 +165,19 @@ public static class IconosTienda
 
         AssetDatabase.SaveAssets();
 
+        // Que la tienda deje de dar por inexistentes los que se acaban de
+        // hacer: sin esto no salen hasta reiniciar Unity.
+        IconoTienda.Olvidar();
+
         tienda = null;
     }
 
     static Sprite Guardar(string nombre, Texture2D foto)
     {
-        string ruta = CARPETA + "/" + Limpio(nombre) + ".png";
+        // El nombre de archivo lo decide IconoTienda, que es quien luego lo
+        // busca. Con la regla escrita en dos sitios, el dia que una cambie el
+        // PNG existira y aun asi no se encontrara.
+        string ruta = CARPETA + "/" + IconoTienda.Limpio(nombre) + ".png";
 
         // La textura del previsualizador no se puede leer directamente, asi que
         // se copia pasando por una RenderTexture. Es el camino de siempre para
@@ -198,14 +215,14 @@ public static class IconosTienda
         return AssetDatabase.LoadAssetAtPath<Sprite>(ruta);
     }
 
-    static string Limpio(string nombre)
+    // Si ya hay PNG, no hay nada que hacer.
+    //
+    // Antes se miraba si la ficha tenia icon puesto, y eso era mirar al sitio
+    // equivocado desde que las fotos viven en Resources: la ficha puede estar
+    // vacia y el archivo estar ahi, o al reves.
+    static bool YaTiene(string nombre)
     {
-        foreach (char c in Path.GetInvalidFileNameChars())
-        {
-            nombre = nombre.Replace(c, '_');
-        }
-
-        return nombre.Replace(' ', '_');
+        return File.Exists(CARPETA + "/" + IconoTienda.Limpio(nombre) + ".png");
     }
 
     static void AsegurarCarpeta()

@@ -102,14 +102,15 @@ public class ShopUI : MonoBehaviour
 
         ToyShopItem[] toys = ShopManager.Instance.toyItems;
 
+        // Misma lista que las maquinas: las dos pestanas se leen igual.
         for (int i = 0; i < toys.Length; i++)
         {
             int index = i;
 
-            GameObject card = Instantiate(ShopManager.Instance.itemCardPrefab, toyListContainer);
-            ItemCardUI cardUI = card.GetComponent<ItemCardUI>();
-
-            cardUI.Setup(toys[index].itemName, toys[index].price, toys[index].icon, () => ShopManager.Instance.AddToyToCart(index));
+            FilaLista.Crear(toyListContainer, i, toys[index].itemName,
+                            toys[index].icon, null, toys[index].price,
+                            "Anadir", new Color(0.15f, 0.62f, 0.35f),
+                            () => ShopManager.Instance.AddToyToCart(index));
         }
     }
 }

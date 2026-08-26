@@ -33,18 +33,9 @@ public class CartUI : MonoBehaviour
     public TextMeshProUGUI totalText;
     public TextMeshProUGUI miniTotalText;
 
-    [Header("Medidas de la lista")]
-    public float altoFila = 56f;
-    public float foto = 44f;
-    public float anchoCantidad = 54f;
-    public float anchoPrecio = 96f;
-    public float anchoQuitar = 34f;
-
-    static readonly Color TINTA = new Color(0.13f, 0.14f, 0.17f);
-    static readonly Color SUAVE = new Color(0.45f, 0.47f, 0.52f);
-    static readonly Color FILA = new Color(1f, 1f, 1f, 0.55f);
-    static readonly Color FILA_ALT = new Color(0f, 0f, 0f, 0.035f);
-    static readonly Color QUITAR = new Color(0.80f, 0.30f, 0.28f);
+    // Las medidas y los colores de las filas viven en FilaLista, que es quien
+    // las dibuja. Tenerlos aqui repetidos es como acaban la tienda y el
+    // carrito pareciendo dos programas distintos.
 
     private bool isOpen = false;
 
@@ -86,7 +77,7 @@ public class CartUI : MonoBehaviour
         {
             totalText.fontSize = 30f;
             totalText.fontStyle = FontStyles.Bold;
-            totalText.color = TINTA;
+            totalText.color = FilaLista.Tinta;
             totalText.alignment = TextAlignmentOptions.Right;
         }
 
@@ -147,7 +138,7 @@ public class CartUI : MonoBehaviour
         if (lines.Count == 0)
         {
             var vacio = UIFactory.Text("Vacio", cartListContainer, "El carrito esta vacio",
-                                       18, SUAVE, TextAlignmentOptions.Center);
+                                       18, FilaLista.Suave, TextAlignmentOptions.Center);
             UIFactory.Height(vacio.rectTransform, 60f);
         }
 
@@ -164,90 +155,10 @@ public class CartUI : MonoBehaviour
 
     void Fila(CartLine line, int indice)
     {
-        RectTransform raiz = UIFactory.Rect("Linea_" + line.itemName, cartListContainer);
-        UIFactory.Height(raiz, altoFila);
-
-        // Las filas pares con un fondo apenas visible. Es lo que deja seguir una
-        // linea de izquierda a derecha sin perderse de renglon.
-        Image fondo = UIFactory.Box("Fondo", raiz, indice % 2 == 0 ? FILA : FILA_ALT);
-        UIFactory.Stretch(fondo.rectTransform, 0f, 0f, 0f, 0f);
-        fondo.sprite = UIFactory.RoundedSprite(8);
-        fondo.type = Image.Type.Sliced;
-        fondo.raycastTarget = false;
-
-        float x = 10f;
-
-        // --- la foto -----------------------------------------------------
-        Image imagen = UIFactory.Box("Foto", raiz, Color.white);
-        Anclar(imagen.rectTransform, x, foto);
-        imagen.preserveAspect = true;
-
-        if (line.icon != null)
-        {
-            imagen.sprite = line.icon;
-        }
-        else
-        {
-            // Sin foto, un hueco marcado en vez de un cuadro blanco: un cuadro
-            // blanco parece una imagen que no ha cargado.
-            imagen.color = new Color(0f, 0f, 0f, 0.06f);
-            imagen.sprite = UIFactory.RoundedSprite(6);
-            imagen.type = Image.Type.Sliced;
-        }
-
-        x += foto + 12f;
-
-        // --- el nombre, que se come lo que sobre ---------------------------
-        float libre = anchoCantidad + anchoPrecio + anchoQuitar + 34f;
-
-        var nombre = UIFactory.Text("Nombre", raiz, line.itemName, 19, TINTA,
-                                    TextAlignmentOptions.Left);
-
-        RectTransform n = nombre.rectTransform;
-        n.anchorMin = new Vector2(0f, 0f);
-        n.anchorMax = new Vector2(1f, 1f);
-        n.offsetMin = new Vector2(x, 0f);
-        n.offsetMax = new Vector2(-libre, 0f);
-        nombre.enableWordWrapping = false;
-        nombre.overflowMode = TextOverflowModes.Ellipsis;
-
-        // --- cantidad, precio y quitar, pegados a la derecha ---------------
-        float d = anchoQuitar + 12f;
-
-        Button quitar = UIFactory.Button("Quitar", raiz, "x", 18,
-                                         new Color(0f, 0f, 0f, 0.05f), QUITAR,
-                                         () => ShoppingCart.Instance.RemoveOne(line.itemName));
-
-        AnclarDerecha(quitar.GetComponent<RectTransform>(), d, anchoQuitar);
-        d += anchoQuitar + 8f;
-
-        var precio = UIFactory.Text("Precio", raiz,
-                                    GameManager.Format(line.unitPrice * line.quantity),
-                                    19, TINTA, TextAlignmentOptions.Right);
-        AnclarDerecha(precio.rectTransform, d, anchoPrecio);
-        precio.fontStyle = FontStyles.Bold;
-        d += anchoPrecio + 8f;
-
-        var cantidad = UIFactory.Text("Cantidad", raiz, "x" + line.quantity, 18, SUAVE,
-                                      TextAlignmentOptions.Center);
-        AnclarDerecha(cantidad.rectTransform, d, anchoCantidad);
+        FilaLista.Crear(cartListContainer, indice, line.itemName, line.icon,
+                        "x" + line.quantity, line.unitPrice * line.quantity,
+                        "Quitar", new Color(0.72f, 0.30f, 0.28f),
+                        () => ShoppingCart.Instance.RemoveOne(line.itemName));
     }
 
-    static void Anclar(RectTransform r, float desdeIzquierda, float ancho)
-    {
-        r.anchorMin = new Vector2(0f, 0.5f);
-        r.anchorMax = new Vector2(0f, 0.5f);
-        r.pivot = new Vector2(0f, 0.5f);
-        r.sizeDelta = new Vector2(ancho, ancho);
-        r.anchoredPosition = new Vector2(desdeIzquierda, 0f);
-    }
-
-    static void AnclarDerecha(RectTransform r, float desdeDerecha, float ancho)
-    {
-        r.anchorMin = new Vector2(1f, 0f);
-        r.anchorMax = new Vector2(1f, 1f);
-        r.pivot = new Vector2(1f, 0.5f);
-        r.sizeDelta = new Vector2(ancho, 0f);
-        r.anchoredPosition = new Vector2(-desdeDerecha, 0f);
-    }
 }

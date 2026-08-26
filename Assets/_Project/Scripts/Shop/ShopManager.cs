@@ -109,14 +109,20 @@ public class ShopManager : MonoBehaviour
             Destroy(child.gameObject);
         }
 
+        // En lista y no en tarjetas.
+        //
+        // Una rejilla de tarjetas grandes esta bien con cuatro cosas; con
+        // veinte hay que hacer scroll para comparar dos precios que no caben
+        // en la misma pantalla. En lista, los precios quedan todos en la misma
+        // columna y se leen de arriba abajo de una pasada.
         for (int i = 0; i < items.Length; i++)
         {
             int index = i;
 
-            GameObject card = Instantiate(itemCardPrefab, itemsContainer);
-            ItemCardUI cardUI = card.GetComponent<ItemCardUI>();
-
-            cardUI.Setup(items[index].itemName, items[index].price, items[index].icon, () => AddItemToCart(index));
+            FilaLista.Crear(itemsContainer, i, items[index].itemName,
+                            items[index].icon, null, items[index].price,
+                            "Anadir", new Color(0.15f, 0.62f, 0.35f),
+                            () => AddItemToCart(index));
         }
     }
 
