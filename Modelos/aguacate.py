@@ -201,7 +201,12 @@ def construir():
     # un boton cosido, no un hueso: lo que sobresale tiene que ser media bola
     # con su volumen, no una chapa redonda.
     hueso_z = 0.078
-    centro = en_superficie(FRENTE, hueso_z)
+
+    # Sentado un poco por dentro de la piel, no a media bola exacta. Con el
+    # centro justo en la superficie asomaba media esfera entera y parecia
+    # pegada; metido nueve milimetros se ve como un hueso al que le ha crecido
+    # la carne alrededor.
+    centro = en_superficie(FRENTE, hueso_z, -0.009)
 
     piezas.append(p.bulto("Hueso", (0.058, 0.058, 0.058),
                           (centro.x, centro.y, hueso_z),
