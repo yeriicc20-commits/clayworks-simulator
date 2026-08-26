@@ -56,13 +56,22 @@ public static class FilaLista
         lista.childForceExpandWidth = true;
         lista.childForceExpandHeight = false;
 
-        // Que el contenedor crezca con las filas, para que el scroll sepa
-        // cuanto hay que recorrer.
-        ContentSizeFitter ajuste = contenedor.GetComponent<ContentSizeFitter>();
-        if (ajuste == null) ajuste = contenedor.gameObject.AddComponent<ContentSizeFitter>();
+        // Aqui no va ningun ContentSizeFitter, y conviene dejarlo escrito.
+        //
+        // Estos contenedores van con las anclas estiradas (0,0 -> 1,1) y el
+        // sizeDelta en negativo: su alto es el del padre menos un margen. Sobre
+        // un rect asi el fitter no fija el alto, se lo SUMA al del padre, y el
+        // contenedor se va por debajo del panel llevandose la lista fuera de la
+        // pantalla. Puse uno y desaparecio la tienda entera.
+        //
+        // Solo tendria sentido siendo el contenido de un ScrollRect, y en esta
+        // pantalla no hay ninguno: el panel mide 390 de alto y las filas caben.
+        ContentSizeFitter sobra = contenedor.GetComponent<ContentSizeFitter>();
 
-        ajuste.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-        ajuste.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        if (sobra != null && contenedor.GetComponentInParent<ScrollRect>() == null)
+        {
+            sobra.enabled = false;
+        }
     }
 
     // Devuelve la fila para que quien la pida pueda colgarle mas cosas.
