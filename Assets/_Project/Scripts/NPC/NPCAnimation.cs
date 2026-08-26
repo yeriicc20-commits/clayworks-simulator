@@ -40,6 +40,35 @@ public class NPCAnimation : MonoBehaviour
     [Tooltip("Escribe en consola que encuentra y a que ritmo va. Solo para depurar.")]
     public bool diagnostico = false;
 
+    [Header("Quieto")]
+
+    [Tooltip("Al pararse deja la pose de caminar y se pone de pie.")]
+    public bool poseAlPararse = true;
+
+    [Tooltip("Lo que tarda en pasar de andar a estar de pie.")]
+    public float suavizadoPose = 7f;
+
+    // La pose de estar quieto, sacada del propio ciclo de andar.
+    //
+    // Pararse era poner el clip a velocidad cero, y eso congela al NPC en el
+    // fotograma que tocara: normalmente a media zancada, con una pierna
+    // adelantada y el brazo en alto. Parado asi parece que se le ha colgado
+    // el juego.
+    //
+    // No hace falta traer una animacion nueva. Dentro del propio ciclo hay un
+    // instante -- el paso de apoyo -- en que los dos pies estan juntos debajo
+    // del cuerpo, a la misma altura y con los brazos al costado. Esa es la
+    // pose mas de pie que existe en el clip, y se busca midiendola en vez de
+    // elegir un fotograma a ojo.
+    Transform[] huesos;
+    Quaternion[] poseQuieta;
+    Vector3 caderaQuieta;
+    float quietud = 0f;
+
+    // Se busca una sola vez: el clip es el mismo para todos los NPC. Lo que
+    // no se puede compartir son los huesos, que son de cada uno.
+    static float tiempoQuieto = -1f;
+
     private Transform cadera;
     private Vector3 caderaEnReposo;
     private Transform[] cadenaRaiz;
@@ -83,6 +112,8 @@ public class NPCAnimation : MonoBehaviour
         SetUpLegacy();
 
         if (legacy == null) SetUpMecanim();
+
+        PrepararPoseQuieta();
     }
 
     void OnDestroy()
@@ -279,7 +310,143 @@ public class NPCAnimation : MonoBehaviour
     // corregirlo antes no serviria de nada.
     void LateUpdate()
     {
+        // Primero la pose y despues la compensacion: la compensacion mide
+        // donde ha acabado la cadera, y tiene que medirla ya colocada.
+        AplicarPoseQuieta();
+
         CompensarAvance();
+    }
+
+    // ------------------------------------------------------ pose de quieto
+
+    void PrepararPoseQuieta()
+    {
+        if (!poseAlPararse || modelo == null) return;
+
+        AnimationClip clip = ClipDeAndar();
+        if (clip == null || clip.length <= 0.01f) return;
+
+        if (tiempoQuieto < 0f) tiempoQuieto = BuscarInstanteMasDePie(clip);
+
+        // Se toma la foto: el clip escribe la pose sobre el modelo y se copian
+        // las rotaciones locales de todos los huesos tal y como quedan.
+        clip.SampleAnimation(modelo.gameObject, tiempoQuieto * clip.length);
+
+        huesos = modelo.GetComponentsInChildren<Transform>(true);
+        poseQuieta = new Quaternion[huesos.Length];
+
+        for (int i = 0; i < huesos.Length; i++)
+        {
+            poseQuieta[i] = huesos[i].localRotation;
+        }
+
+        if (cadera != null) caderaQuieta = cadera.localPosition;
+    }
+
+    // Recorre el ciclo y se queda con el instante de los pies mas juntos.
+    //
+    // Se mide en el suelo y en altura a la vez: los pies se cruzan tambien a
+    // media zancada, pero ahi uno va levantado. Sumando el desnivel, ese
+    // instante deja de ganar y sale el de apoyo, que es el que se busca.
+    float BuscarInstanteMasDePie(AnimationClip clip)
+    {
+        Transform iz = Hueso("LeftFoot");
+        Transform de = Hueso("RightFoot");
+
+        if (iz == null || de == null) return 0f;
+
+        const int PASOS = 48;
+
+        float mejorT = 0f;
+        float mejor = float.MaxValue;
+
+        for (int i = 0; i < PASOS; i++)
+        {
+            float t = (float)i / PASOS;
+
+            clip.SampleAnimation(modelo.gameObject, t * clip.length);
+
+            Vector3 a = modelo.InverseTransformPoint(iz.position);
+            Vector3 b = modelo.InverseTransformPoint(de.position);
+
+            float separacion = new Vector2(a.x - b.x, a.z - b.z).magnitude;
+            float desnivel = Mathf.Abs(a.y - b.y);
+
+            float coste = separacion + desnivel;
+
+            if (coste >= mejor) continue;
+
+            mejor = coste;
+            mejorT = t;
+        }
+
+        return mejorT;
+    }
+
+    void AplicarPoseQuieta()
+    {
+        if (!poseAlPararse || huesos == null) return;
+
+        float objetivo = speedValue < stopThreshold ? 1f : 0f;
+
+        // Cruzado poco a poco y no de golpe: cambiando de pose en un solo
+        // fotograma, al pararse se ve un tiron.
+        quietud = Mathf.Lerp(quietud, objetivo,
+                             1f - Mathf.Exp(-suavizadoPose * Time.deltaTime));
+
+        if (quietud < 0.002f) return;
+
+        for (int i = 0; i < huesos.Length; i++)
+        {
+            if (huesos[i] == null) continue;
+
+            huesos[i].localRotation = Quaternion.Slerp(huesos[i].localRotation,
+                                                       poseQuieta[i], quietud);
+        }
+
+        if (cadera != null)
+        {
+            cadera.localPosition = Vector3.Lerp(cadera.localPosition,
+                                               caderaQuieta, quietud);
+        }
+    }
+
+    // El clip de andar, venga por donde venga.
+    AnimationClip ClipDeAndar()
+    {
+        if (legacy != null && !string.IsNullOrEmpty(legacyClip))
+        {
+            return legacy.GetClip(legacyClip);
+        }
+
+        AnimationClip suelto = LongestWalkClip();
+        if (suelto != null) return suelto;
+
+        if (animator == null || animator.runtimeAnimatorController == null) return null;
+
+        AnimationClip mejor = null;
+
+        foreach (AnimationClip c in animator.runtimeAnimatorController.animationClips)
+        {
+            if (c == null || c.length <= 0.01f) continue;
+            if (mejor == null || c.length > mejor.length) mejor = c;
+        }
+
+        return mejor;
+    }
+
+    // Por el final del nombre, que asi vale igual con "mixamorig:LeftFoot".
+    Transform Hueso(string nombre)
+    {
+        foreach (Transform t in modelo.GetComponentsInChildren<Transform>(true))
+        {
+            if (t.name.EndsWith(nombre, System.StringComparison.OrdinalIgnoreCase))
+            {
+                return t;
+            }
+        }
+
+        return null;
     }
 
     // Deja al personaje caminando en el sitio, venga el avance de donde venga.
@@ -398,7 +565,10 @@ public class NPCAnimation : MonoBehaviour
                       " | controlador=" + ctrl +
                       " | clipAndar=" + (walk != null ? walk.name + " (" + walk.length.ToString("0.00") + "s)" : "NINGUNO") +
                       " | applyRootMotion=" + (animator != null && animator.applyRootMotion) +
-                      " | cadera=" + (cadera != null ? cadera.name : "NO ENCONTRADA"), this);
+                      " | cadera=" + (cadera != null ? cadera.name : "NO ENCONTRADA") +
+                      " | poseQuieta=" + (huesos != null
+                          ? "t=" + tiempoQuieto.ToString("0.00") + " (" + huesos.Length + " huesos)"
+                          : "NO"), this);
         }
 
         if (Time.time < diagnosticoSiguiente) return;
