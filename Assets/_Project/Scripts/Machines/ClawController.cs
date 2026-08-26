@@ -389,9 +389,7 @@ public class ClawController : MonoBehaviour
     private Rigidbody clawHeadRb;
     private Rigidbody carriageRb;
     private Rigidbody armRb;
-    private float[] anguloPrevio;
     private float radioReposo = 0.1f;
-    private bool cerrandoMotores = false;
     private ConfigurableJoint cableJoint;
     private Vector3 cableAnchorLocal;
     private float cableBaseLength;
@@ -470,7 +468,6 @@ public class ClawController : MonoBehaviour
         SetUpCable();
 
         currentFingerAngle = new float[fingers.Length];
-        anguloPrevio = new float[fingers.Length];
         fingerRotationAxis = new Vector3[fingers.Length];
         fingerStopped = new bool[fingers.Length];
         fingerTouchedCollider = new Collider[fingers.Length];
@@ -790,32 +787,21 @@ public class ClawController : MonoBehaviour
         // lleve la rutina: la gracia del motor es que empuje hasta que algo lo
         // pare. Si se le fuese dando el angulo poco a poco, se quedaria quieto
         // en cuanto la rutina dejase de subirlo y no apretaria nada.
-        if (ConMotores)
-        {
-            // Abrir o cerrar se decide por HACIA DONDE va el angulo, no por
-            // cuanto vale.
-            //
-            // Mirando solo el valor, durante toda la rampa de apertura el
-            // angulo sigue siendo grande y el motor seguia recibiendo la orden
-            // de apretar. Los dedos no se abrian hasta el ultimo grado, o sea
-            // casi dos segundos tarde, y si la rutina se cortaba antes se
-            // quedaban cerrados hasta la partida siguiente.
-            float previo = anguloPrevio[i];
-            anguloPrevio[i] = currentFingerAngle[i];
-
-            if (Mathf.Abs(currentFingerAngle[i] - previo) > 0.001f)
-            {
-                cerrandoMotores = Mathf.Abs(currentFingerAngle[i]) > Mathf.Abs(previo);
-            }
-
-            // Y con el objetivo en el reposo, abierta sin discusion.
-            if (Mathf.Abs(currentFingerAngle[i]) < 1f) cerrandoMotores = false;
-
-            if (cerrandoMotores) fingerMotors.Cerrar(fingerMotors.ParActual);
-            else fingerMotors.Abrir();
-
-            return;
-        }
+        // Con motores, aqui no se toca el motor. Ni se le manda cerrar ni
+        // abrir: eso se hace donde se decide, en la secuencia de la partida.
+        //
+        // Lo que habia era una maquina de estados que deducia "abrir o cerrar"
+        // de hacia donde iba un angulo de animacion, con un booleano compartido
+        // por los tres dedos que se reescribia dentro del bucle de cada uno. Ha
+        // fallado cuatro veces seguidas y cada vez por un motivo distinto, la
+        // ultima dejando la garra ABIERTA todo el rato: la boca acabo en 317 mm
+        // cuando en reposo mide 251.
+        //
+        // Y no hacia falta para nada. La pose del dedo con motores la decide la
+        // fisica; el angulo de la animacion no la manda, solo la acompanaba. Un
+        // Cerrar() al llegar abajo y un Abrir() al soltar es todo lo que hay que
+        // decir, y asi se lee de un vistazo.
+        if (ConMotores) return;
 
         currentFingerAngle[i] = Mathf.Clamp(currentFingerAngle[i], -180f, 180f);
 
@@ -1276,6 +1262,10 @@ public class ClawController : MonoBehaviour
         {
             // Sin sonido al cerrar ni al abrir: pedido asi. Los clips siguen
             // en el prefab, listos para volver con una linea.
+            // Cerrar. Sin rodeos: el motor recibe la orden aqui y la mantiene
+            // el solo hasta que se le diga otra cosa.
+            if (ConMotores) fingerMotors.Cerrar(fingerMotors.ParActual);
+
             Coroutine liveGripRoutine = StartCoroutine(CloseFingersLiveGrip(fingerCloseAngle));
 
             // Primero cerrar del todo, y DESPUES subir.
@@ -1459,6 +1449,9 @@ public class ClawController : MonoBehaviour
         // Lo primero al llegar: soltar el agarre firme. Si se soltara despues
         // de abrir los dedos, el peluche se quedaria pegado a una garra abierta.
         SoltarFirme();
+
+        // Y abrir, tambien sin rodeos.
+        if (ConMotores) fingerMotors.Abrir();
 
         if (useRealisticGripPhysics)
         {
@@ -1747,9 +1740,11 @@ public class ClawController : MonoBehaviour
     // que se mide, en vez de contar segundos y cruzar los dedos.
     IEnumerator EsperarACerrar()
     {
-        float boca = RadioGarra();
+        float inicial = RadioGarra();
+        float boca = inicial;
         float quieta = 0f;
         float total = 0f;
+        float estrechada = 0f;
 
         while (total < esperaCierreMaxima)
         {
@@ -1759,6 +1754,7 @@ public class ClawController : MonoBehaviour
             total += dt;
 
             float ahora = RadioGarra();
+            estrechada = inicial - ahora;
 
             // Medio milimetro por paso es el temblor del balanceo, no cierre.
             if (boca - ahora < 0.0005f) quieta += dt;
@@ -1766,12 +1762,19 @@ public class ClawController : MonoBehaviour
 
             boca = ahora;
 
-            if (quieta >= quietudCierre) break;
+            // Y no vale con que este quieta: tiene que HABERSE cerrado algo.
+            //
+            // Sin esta condicion, una garra que no se mueve en absoluto cumple
+            // "no se estrecha" desde el primer paso y se daba por cerrada a los
+            // 0,25 s. Es lo que pasaba: subia sin haber cerrado y el log decia
+            // que habia cerrado, que es la peor forma de equivocarse.
+            if (quieta >= quietudCierre && estrechada > 0.003f) break;
         }
 
         Debug.Log(string.Format(
-            "[Garra] Ha cerrado en {0:F2} s y la boca se ha quedado en {1:F0} mm",
-            total, RadioGarra() * 2000f));
+            "[Garra] Cierre: {0:F2} s, boca de {1:F0} a {2:F0} mm ({3:F0} mm menos){4}",
+            total, inicial * 2000f, RadioGarra() * 2000f, estrechada * 2000f,
+            estrechada > 0.003f ? "" : "  NO HA CERRADO"));
     }
 
     // Sujeta el peluche de verdad, sin depender del rozamiento.
