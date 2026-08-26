@@ -20,6 +20,11 @@ public class PlushItem : MonoBehaviour
     [HideInInspector] public bool isGrabbed = false;
     [HideInInspector] public bool hasBeenGrabbed = false;
 
+    [Tooltip("Lo que dan por el al venderlo. La caja de diez cuesta 60, o sea "
+             + "seis por peluche: vendiendolo a 20 el margen es el trabajo de "
+             + "sacarlo de la maquina.")]
+    public int precioVenta = 20;
+
     // Evita que la garra y la zona de premio lo cobren dos veces.
     [HideInInspector] public bool collected = false;
 

@@ -35,6 +35,22 @@ public class PelucheEnMano : MonoBehaviour
     [Tooltip("Grados de giro por unidad de raton.")]
     public float sensibilidadGiro = 220f;
 
+    [Header("Tirarlo y venderlo")]
+    public KeyCode teclaLanzar = KeyCode.Q;
+    public KeyCode teclaVender = KeyCode.V;
+
+    [Tooltip("Cuanto hay que mantener la tecla para llegar al maximo.")]
+    public float cargaCompleta = 1.2f;
+
+    [Tooltip("Velocidad de salida con la barra a cero, en m/s.")]
+    public float velocidadMinima = 2.5f;
+
+    [Tooltip("Velocidad con la barra al maximo. Menos que una caja: un peluche "
+             + "de trapo no se lanza como un bulto de carton.")]
+    public float velocidadMaxima = 7f;
+
+    private float carga = 0f;
+
     public bool Inspeccionando { get; private set; }
 
     PlushItem sostenido;
@@ -121,6 +137,79 @@ public class PelucheEnMano : MonoBehaviour
             NotificationManager.Instance.ShowMessage("Peluche en la mano");
     }
 
+    // Devuelve true mientras se esta apuntando el tiro.
+    bool Cargando()
+    {
+        if (Input.GetKey(teclaLanzar))
+        {
+            carga = Mathf.Min(carga + Time.deltaTime, cargaCompleta);
+
+            MedidorFuerza.Mostrar(carga / cargaCompleta);
+            InteractionUI.Prompt("Suelta " + teclaLanzar + " para tirar el peluche");
+
+            return true;
+        }
+
+        if (carga <= 0f) return false;
+
+        float fuerza = carga / cargaCompleta;
+        carga = 0f;
+
+        MedidorFuerza.Ocultar();
+        Lanzar(fuerza);
+
+        return true;
+    }
+
+    void Lanzar(float fuerza)
+    {
+        PlushItem peluche = sostenido;
+        if (peluche == null) return;
+
+        Transform camara = ojo != null ? ojo.transform : transform;
+
+        Soltar();
+
+        Rigidbody rb = peluche.GetComponent<Rigidbody>();
+        if (rb == null) return;
+
+        // Algo hacia arriba, igual que con las cajas: un tiro recto se estrella
+        // a dos metros y no parece que lo hayas lanzado.
+        Vector3 salida = (camara.forward + Vector3.up * 0.22f).normalized;
+
+        rb.linearVelocity = salida * Mathf.Lerp(velocidadMinima, velocidadMaxima, fuerza);
+        rb.angularVelocity = camara.right * Random.Range(-3f, -1f);
+
+        // Barrido continuo mientras vuela, que si no se cuela por una pared.
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+    }
+
+    // Venderlo. Se va de las manos y no vuelve.
+    void Vender()
+    {
+        PlushItem peluche = sostenido;
+        if (peluche == null) return;
+
+        int precio = peluche.precioVenta;
+
+        SalirDeInspeccion();
+        sostenido = null;
+
+        MedidorFuerza.Ocultar();
+        carga = 0f;
+        InteractionUI.Hide();
+
+        if (GameManager.Instance != null) GameManager.Instance.AddMoney(precio);
+
+        LevelManager niveles = LevelManager.EnsureExists();
+        if (niveles != null) niveles.Add(niveles.xpPrizeSold);
+
+        if (NotificationManager.Instance != null)
+            NotificationManager.Instance.ShowMessage("Vendido por " + precio);
+
+        Destroy(peluche.gameObject);
+    }
+
     public void Soltar()
     {
         if (sostenido == null) return;
@@ -141,7 +230,19 @@ public class PelucheEnMano : MonoBehaviour
 
     void Update()
     {
-        if (sostenido == null) return;
+        if (sostenido == null)
+        {
+            // Si el peluche se ha ido por otro lado en mitad de una carga, la
+            // barra se queda encendida para siempre.
+            if (carga > 0f)
+            {
+                carga = 0f;
+                MedidorFuerza.Ocultar();
+            }
+
+            return;
+        }
+
         if (CursorMode.FreeCursor) return;
 
         if (Input.GetMouseButtonDown(botonInspeccion))
@@ -152,10 +253,18 @@ public class PelucheEnMano : MonoBehaviour
 
         if (!Inspeccionando)
         {
-            InteractionUI.Prompt("Clic central para mirar el peluche - "
-                                 + "G para dejarlo");
+            // Cargar el tiro se mira antes que nada: mientras se apunta no se
+            // hace ninguna otra cosa con el peluche.
+            if (Cargando()) return;
 
-            if (Input.GetKeyDown(KeyCode.G)) Soltar();
+            InteractionUI.Prompt("Clic central para mirarlo - " + teclaLanzar
+                                 + " para tirarlo - " + teclaVender
+                                 + " para venderlo por " + sostenido.precioVenta
+                                 + " - G para dejarlo");
+
+            if (Input.GetKeyDown(teclaVender)) Vender();
+            else if (Input.GetKeyDown(KeyCode.G)) Soltar();
+
             return;
         }
 
