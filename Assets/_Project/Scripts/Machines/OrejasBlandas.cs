@@ -81,6 +81,23 @@ public class OrejasBlandas : MonoBehaviour
 
     void Start()
     {
+        Preparar();
+    }
+
+    // El montaje va aparte de Start, y LateUpdate lo llama si hace falta.
+    //
+    // Recompilar con el juego en marcha hace que Unity recargue el dominio:
+    // se conserva lo serializado, pero los campos privados se van a null y
+    // Start() NO se vuelve a llamar, porque para Unity este componente ya
+    // arranco. Asi que "cables" quedaba en null con el componente encendido, y
+    // LateUpdate petaba en cada fotograma de cada peluche: 15.083 excepciones
+    // en una sola sesion, cada una con su traza. Eso no es solo ruido en la
+    // consola, es tiempo de fotograma, y con eso todo lo demas se mueve a
+    // tirones.
+    //
+    // Montandolo bajo demanda da igual si Start llego a correr o no.
+    void Preparar()
+    {
         if (orejas == null || orejas.Length == 0) { enabled = false; return; }
 
         // El prefab guarda estos numeros dentro, y antes este componente era un
@@ -214,6 +231,9 @@ public class OrejasBlandas : MonoBehaviour
 
     void LateUpdate()
     {
+        if (cables == null) Preparar();
+        if (cables == null || cables.Length == 0) return;
+
         float dt = Mathf.Min(Time.deltaTime, 1f / 30f);
         if (dt <= 0f) return;
 
@@ -236,6 +256,9 @@ public class OrejasBlandas : MonoBehaviour
 
         foreach (Cable c in cables)
         {
+            // Una oreja puede desaparecer sin que desaparezca el peluche.
+            if (c == null || c.t == null || c.malla == null) continue;
+
             int n = c.nudo.Length;
 
             // La costura no se simula: va donde va el peluche.
