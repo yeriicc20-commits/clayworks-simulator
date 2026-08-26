@@ -54,12 +54,26 @@ public class FirstPersonController : MonoBehaviour
 
     void Start()
     {
-        controller = GetComponent<CharacterController>();
         Cursor.lockState = CursorLockMode.Locked;
+        Preparar();
+    }
 
-        // La postura de pie se toma de la escena y no de un numero escrito
-        // aqui: asi agacharse sigue funcionando si manana cambia la altura del
-        // jugador.
+    // La postura de pie, medida de la escena y no escrita aqui: asi agacharse
+    // sigue funcionando si manana cambia la altura del jugador.
+    //
+    // Va aparte de Start y se comprueba en cada Update porque recompilar con
+    // el juego en marcha recarga el dominio: los campos privados se van a cero
+    // y Start() NO se vuelve a llamar. Con standHeight en cero, la altura
+    // objetivo del CharacterController sale cero y el jugador se hunde en el
+    // suelo. Es el mismo fallo que tenia OrejasBlandas, y ahi costo quince mil
+    // excepciones darse cuenta.
+    void Preparar()
+    {
+        if (controller == null) controller = GetComponent<CharacterController>();
+        if (controller == null) return;
+
+        if (standHeight > 0.01f) return;
+
         standHeight = controller.height;
         standCenter = controller.center;
 
@@ -77,6 +91,8 @@ public class FirstPersonController : MonoBehaviour
             return;
         }
 
+        Preparar();
+
         HandleCrouch();
         if (!LookLocked) HandleMouseLook();
         HandleMovement();
@@ -84,6 +100,8 @@ public class FirstPersonController : MonoBehaviour
 
     void HandleCrouch()
     {
+        if (controller == null || standHeight <= 0.01f) return;
+
         TeclaAgacharse = crouchKey;
         IsCrouching = Input.GetKey(crouchKey);
 
