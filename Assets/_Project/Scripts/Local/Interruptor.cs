@@ -27,6 +27,70 @@ public class Interruptor : MonoBehaviour
 
     static bool contado = false;
 
+    // Se instala solo en el interruptor que ya esta puesto en la escena.
+    //
+    // El de la escena no es el prefab: es el FBX arrastrado a mano, o sea la
+    // malla pelada. No lleva este componente ni collider, asi que no daba
+    // cartel ni encendia nada, y por fuera se ve exactamente igual que uno
+    // que si funciona.
+    //
+    // Se busca por el nombre. No es fino, pero es lo unico que tienen en
+    // comun una malla suelta y un prefab, y la alternativa era pedir que se
+    // borre y se vuelva a colocar el bueno.
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void AlArrancar()
+    {
+        foreach (Transform t in FindObjectsByType<Transform>(FindObjectsSortMode.None))
+        {
+            if (t == null) continue;
+            if (!t.name.StartsWith("Interruptor")) continue;
+
+            // Ni si ya lo lleva, ni si es una pieza de uno que si lo lleva.
+            if (t.GetComponentInParent<Interruptor>() != null) continue;
+
+            Instalar(t.gameObject);
+        }
+    }
+
+    static void Instalar(GameObject go)
+    {
+        Interruptor script = go.AddComponent<Interruptor>();
+
+        foreach (Transform hijo in go.GetComponentsInChildren<Transform>(true))
+        {
+            if (hijo.name != "Tecla") continue;
+
+            script.tecla = hijo;
+            break;
+        }
+
+        // Sin collider no hay a que apuntar: el rayo le pasa por encima y no
+        // saldria el cartel por mucho que lo mires.
+        if (go.GetComponentInChildren<Collider>(true) != null) return;
+
+        Bounds caja = new Bounds();
+        bool primero = true;
+
+        foreach (Renderer r in go.GetComponentsInChildren<Renderer>(true))
+        {
+            if (primero)
+            {
+                caja = r.bounds;
+                primero = false;
+                continue;
+            }
+
+            caja.Encapsulate(r.bounds);
+        }
+
+        if (primero) return;
+
+        BoxCollider col = go.AddComponent<BoxCollider>();
+
+        col.center = go.transform.InverseTransformPoint(caja.center);
+        col.size = caja.size;
+    }
+
     void Start()
     {
         if (tecla != null) teclaReposo = tecla.localRotation;
@@ -40,7 +104,7 @@ public class Interruptor : MonoBehaviour
         if (contado) return;
         contado = true;
 
-        Debug.Log("[Interruptor] Colocado. Bombillas en el local: "
+        Debug.Log("[Interruptor] Listo en '" + name + "'. Luces en el local: "
                   + Bombilla.Todas.Count + ". Apuntale y pulsa "
                   + AjustesControles.NombreTecla(
                       AjustesControles.Tecla(AjustesControles.Accion.Usar))
@@ -58,7 +122,7 @@ public class Interruptor : MonoBehaviour
         InteractionUI.Prompt(
             AjustesControles.NombreTecla(
                 AjustesControles.Tecla(AjustesControles.Accion.Usar))
-            + (encendidas ? ": apagar la luz" : ": encender la luz"));
+            + " para interactuar");
 
         if (!AjustesControles.Pulsando(AjustesControles.Accion.Usar)) return;
 
