@@ -282,9 +282,12 @@ public class ShopManager : MonoBehaviour
         ficha.price = precio;
         ficha.itemPrefab = prefab;
 
-        // La caja de las maquinas, que es la que lleva PickupBox. La de
-        // juguetes lleva ToyBox y al abrirla suelta peluches.
-        ficha.boxPrefab = CajaDeMaquina();
+        // Su propia caja, que es pequena: una regleta no ocupa lo que una
+        // maquina de garra. Si no esta, la de las maquinas como respaldo --
+        // grande, pero al menos lleva PickupBox y se puede abrir.
+        GameObject caja = Resources.Load<GameObject>("Luces/Caja_Luz");
+
+        ficha.boxPrefab = caja != null ? caja : CajaDeMaquina();
 
         lista.Add(ficha);
     }

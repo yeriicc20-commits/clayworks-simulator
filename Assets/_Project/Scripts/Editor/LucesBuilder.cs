@@ -18,6 +18,17 @@ public static class LucesBuilder
     // el prefab esta, se venden.
     const string PREFABS = "Assets/_Project/Resources/Luces/";
 
+    // La capa de lo que se puede recoger. HoldToPickup solo mira ahi.
+    const int CAPA_PLACEABLE = 8;
+
+    // La caja en la que llega una luz.
+    //
+    // Copiada a Resources porque la tienda la carga en tiempo de ejecucion y
+    // desde ahi no se puede leer Assets/_Project/Prefabs. Se copia una vez y
+    // solo si falta.
+    const string CAJA_ORIGEN = "Assets/_Project/Prefabs/Box_Pequena.prefab";
+    const string CAJA_LUZ = "Assets/_Project/Resources/Luces/Caja_Luz.prefab";
+
     // Cuanto por debajo de la luminaria va el punto de luz.
     //
     // No pegado a ella: la pantalla va contra el techo, y una luz a tres
@@ -36,7 +47,7 @@ public static class LucesBuilder
     {
         EditorApplication.delayCall += () =>
         {
-            if (Falta("LedTecho") || Falta("Interruptor")) Construir();
+            if (Falta("LedTecho") || Falta("Interruptor") || FaltaCaja()) Construir();
         };
     }
 
@@ -44,6 +55,27 @@ public static class LucesBuilder
     {
         return AssetDatabase.LoadAssetAtPath<GameObject>(
             PREFABS + nombre + ".prefab") == null;
+    }
+
+    static bool FaltaCaja()
+    {
+        return AssetDatabase.LoadAssetAtPath<GameObject>(CAJA_LUZ) == null;
+    }
+
+    // La pantalla llegaba en la caja de las maquinas, que es la grande, y una
+    // regleta no ocupa eso ni de lejos. Se copia la pequena.
+    static void PrepararCaja()
+    {
+        if (!FaltaCaja()) return;
+
+        if (AssetDatabase.LoadAssetAtPath<GameObject>(CAJA_ORIGEN) == null)
+        {
+            Debug.LogWarning("[Luces] No encuentro " + CAJA_ORIGEN
+                             + ": la luz llegara en la caja de las maquinas.");
+            return;
+        }
+
+        AssetDatabase.CopyAsset(CAJA_ORIGEN, CAJA_LUZ);
     }
 
     [MenuItem("ClayWorks/Construir luces", false, 5)]
@@ -54,6 +86,8 @@ public static class LucesBuilder
             Directory.CreateDirectory(PREFABS);
             AssetDatabase.Refresh();
         }
+
+        PrepararCaja();
 
         GameObject led = ConstruirLed();
         GameObject interruptor = ConstruirInterruptor();
@@ -148,9 +182,7 @@ public static class LucesBuilder
         ReglaDeColocacion regla = raiz.AddComponent<ReglaDeColocacion>();
         regla.donde = ReglaDeColocacion.Donde.Techo;
 
-        Recolocable mover = raiz.AddComponent<Recolocable>();
-        mover.queEs = "la pantalla";
-
+        SePuedeRecoger(raiz);
         Colisionador(raiz);
 
         return Guardar(raiz, "LedTecho");
@@ -185,16 +217,29 @@ public static class LucesBuilder
         // el mismo pixel y sale un parpadeo.
         regla.separacion = 0.002f;
 
-        // Tambien se puede recoger. Pero con el boton de tirar, no con el de
-        // usar: usar es lo que enciende la luz, y compartir tecla lo dejaria
-        // imposible de encender sin acabar moviendolo.
-        Recolocable mover = raiz.AddComponent<Recolocable>();
-        mover.queEs = "el interruptor";
-        mover.conTeclaDeTirar = true;
-
+        SePuedeRecoger(raiz);
         Colisionador(raiz);
 
         return Guardar(raiz, "Interruptor");
+    }
+
+    // Se recoge manteniendo el clic derecho, igual que las maquinas.
+    //
+    // Le habia puesto una tecla propia, y eso era inventar un segundo sistema
+    // para lo mismo: quien juega ya sabe que las cosas colocadas se levantan
+    // con el clic derecho mantenido. Basta con la pieza que ya existe y con
+    // estar en la capa que mira HoldToPickup.
+    //
+    // sourcePrefab no se pone aqui: lo rellena el colocador al soltarlo, que
+    // es quien sabe de que prefab salio.
+    static void SePuedeRecoger(GameObject raiz)
+    {
+        raiz.AddComponent<PlaceableObject>();
+
+        foreach (Transform t in raiz.GetComponentsInChildren<Transform>(true))
+        {
+            t.gameObject.layer = CAPA_PLACEABLE;
+        }
     }
 
     // ------------------------------------------------------------- ayudantes

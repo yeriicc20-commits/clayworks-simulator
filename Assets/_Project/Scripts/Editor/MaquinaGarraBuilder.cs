@@ -698,6 +698,11 @@ public static class MaquinaGarraBuilder
 
         raiz.AddComponent<PlaceableObject>();
 
+        // Los focos de dentro, los que alumbran el monton de peluches. Se
+        // ponen solos tambien en las maquinas ya colocadas, pero teniendolo en
+        // el prefab las nuevas nacen con ellos.
+        raiz.AddComponent<LucesEscaparate>();
+
         PlushDropZone premio = zonaPremio.AddComponent<PlushDropZone>();
         premio.clawController = claw;
         premio.moneyReward = 20;
