@@ -59,11 +59,21 @@ public static class LucesBuilder
 
     static bool FaltaCaja()
     {
-        return AssetDatabase.LoadAssetAtPath<GameObject>(CAJA_LUZ) == null;
+        GameObject caja = AssetDatabase.LoadAssetAtPath<GameObject>(CAJA_LUZ);
+
+        // Cuenta como que falta si esta pero sin PickupBox. Eso paso la
+        // primera vez: la caja se copiaba tal cual y la tienda la tiraba a la
+        // basura al ver que no se podia abrir. Comprobandolo aqui se arregla
+        // sola en vez de tener que borrarla a mano.
+        return caja == null || caja.GetComponent<PickupBox>() == null;
     }
 
-    // La pantalla llegaba en la caja de las maquinas, que es la grande, y una
-    // regleta no ocupa eso ni de lejos. Se copia la pequena.
+    // La caja en la que llega la pantalla.
+    //
+    // Llegaba en la de las maquinas, que es la grande, y una regleta no ocupa
+    // eso ni de lejos. Se copia la pequena... pero la pequena es la de
+    // JUGUETES: lleva ToyBox y al abrirla suelta peluches. Hay que cambiarle
+    // el componente por el que saca lo que lleve dentro.
     static void PrepararCaja()
     {
         if (!FaltaCaja()) return;
@@ -75,7 +85,31 @@ public static class LucesBuilder
             return;
         }
 
-        AssetDatabase.CopyAsset(CAJA_ORIGEN, CAJA_LUZ);
+        // Se borra antes: CopyAsset no pisa un archivo que ya este, y si
+        // hemos llegado aqui es que el que hay no sirve.
+        AssetDatabase.DeleteAsset(CAJA_LUZ);
+
+        if (!AssetDatabase.CopyAsset(CAJA_ORIGEN, CAJA_LUZ))
+        {
+            Debug.LogWarning("[Luces] No he podido copiar la caja pequena.");
+            return;
+        }
+
+        GameObject copia = PrefabUtility.LoadPrefabContents(CAJA_LUZ);
+
+        ToyBox juguetes = copia.GetComponent<ToyBox>();
+        if (juguetes != null) Object.DestroyImmediate(juguetes);
+
+        if (copia.GetComponent<PickupBox>() == null)
+        {
+            copia.AddComponent<PickupBox>();
+        }
+
+        PrefabUtility.SaveAsPrefabAsset(copia, CAJA_LUZ);
+        PrefabUtility.UnloadPrefabContents(copia);
+
+        Debug.Log("[Luces] Caja de la luz lista: la pequena, pero de las que "
+                  + "se abren para sacar lo de dentro.");
     }
 
     [MenuItem("ClayWorks/Construir luces", false, 5)]
