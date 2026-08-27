@@ -33,6 +33,14 @@ public class PlacementManager : MonoBehaviour
     private ReglaDeColocacion regla;
     private Vector3 surfaceNormal = Vector3.up;
 
+    // Contra que se esta apoyando ahora mismo.
+    //
+    // Hace falta porque una cosa pegada a una superficie SOLAPA con ella
+    // siempre, por definicion. El techo esta en la capa Obstacle, igual que
+    // las paredes, asi que la comprobacion de estorbos encontraba el propio
+    // techo y no dejaba colocar nunca una luz en el.
+    private Collider superficieTocada;
+
     private bool isPlacing = false;
     private bool canPlace = false;
     private float currentYRotation = 0f;
@@ -315,6 +323,7 @@ public class PlacementManager : MonoBehaviour
         {
             surfacePoint = cameraHit.point;
             surfaceNormal = cameraHit.normal;
+            superficieTocada = cameraHit.collider;
             foundSurface = true;
             onGround = IsInLayerMask(cameraHit.collider.gameObject.layer, groundLayer);
         }
@@ -332,6 +341,7 @@ public class PlacementManager : MonoBehaviour
             {
                 surfacePoint = groundHit.point;
                 surfaceNormal = groundHit.normal;
+                superficieTocada = groundHit.collider;
                 foundSurface = true;
                 onGround = true;
             }
@@ -454,7 +464,19 @@ public class PlacementManager : MonoBehaviour
 
         Collider[] overlaps = Physics.OverlapBox(centerWorldNow, checkSize / 2f, ghostObject.transform.rotation, obstacleLayers, QueryTriggerInteraction.Ignore);
 
-        canPlace = overlaps.Length == 0;
+        canPlace = true;
+
+        foreach (Collider estorbo in overlaps)
+        {
+            // La superficie sobre la que se apoya no cuenta como estorbo.
+            // Pegar algo a una pared o a un techo es, precisamente, solapar
+            // con ellos: sin esta salvedad no se podria colocar nada encima
+            // de nada que este en la capa Obstacle.
+            if (estorbo == superficieTocada) continue;
+
+            canPlace = false;
+            break;
+        }
 
         // Tampoco encima del jugador: al activarse el collider lo despenetraria
         // y saldria disparado hacia arriba.

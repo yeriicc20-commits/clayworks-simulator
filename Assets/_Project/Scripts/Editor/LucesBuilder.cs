@@ -24,7 +24,7 @@ public static class LucesBuilder
     // centimetros del techo lo abrasa y deja la sala igual de oscura que
     // antes. Un palmo mas abajo reparte, y sigue sin verse porque queda
     // dentro del cono que tapa la propia carcasa.
-    const float LUZ_DEBAJO = 0.18f;
+    const float LUZ_DEBAJO = 0.10f;
 
     // Solas al abrir Unity, y solo si faltan.
     //
@@ -92,13 +92,27 @@ public static class LucesBuilder
 
         // Fuerte y de largo alcance: son 5 m de techo, y con el alcance corto
         // la luz se apaga antes de llegar al suelo.
-        luz.intensity = 4.2f;
-        luz.range = 16f;
+        // Suave. Un punto de luz muy fuerte pegado al techo hace un charco
+        // duro justo debajo y deja el resto oscuro, que no se parece nada a
+        // una regleta: la de verdad reparte a lo largo.
+        luz.intensity = 2.6f;
+        luz.range = 14f;
 
         // Con sombras: sin ellas las maquinas no se apoyan en el suelo y todo
         // parece flotar, que es justo lo que delata a una luz falsa.
         luz.shadows = LightShadows.Soft;
         luz.shadowStrength = 0.7f;
+
+        // Pero la propia luminaria no proyecta.
+        //
+        // El punto de luz esta justo debajo de ella, asi que la carcasa le
+        // tapa todo lo de arriba y dibujaba en el techo una franja negra con
+        // la forma de la pantalla, justo alrededor de la luz. Sin proyectar,
+        // el techo de alrededor se ilumina como corresponde.
+        foreach (Renderer r in raiz.GetComponentsInChildren<Renderer>(true))
+        {
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
 
         Bombilla script = raiz.AddComponent<Bombilla>();
         script.luz = luz;
