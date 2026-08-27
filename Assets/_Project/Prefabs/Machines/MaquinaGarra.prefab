@@ -3914,8 +3914,8 @@ MonoBehaviour:
   enableSwing: 1
   swingStiffness: 34
   swingDamping: 1.15
-  swingTiltAmount: 34
-  swingMaxTiltAngle: 28
+  swingTiltAmount: 22
+  swingMaxTiltAngle: 18
   isControllable: 0
   activeCarrySpot: {fileID: 0}
   npcSpot: {fileID: 8970465842557051540}

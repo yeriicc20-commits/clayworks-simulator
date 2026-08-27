@@ -239,10 +239,10 @@ public class ClawController : MonoBehaviour
     public float swingDamping = 1.15f;
 
     [Tooltip("Cuanto se tuerce por cada unidad de velocidad del carro.")]
-    public float swingTiltAmount = 34f;
+    public float swingTiltAmount = 22f;
 
     [Tooltip("Tope de inclinacion que persigue, en grados.")]
-    public float swingMaxTiltAngle = 28f;
+    public float swingMaxTiltAngle = 18f;
 
     [HideInInspector] public bool isControllable = false;
     [HideInInspector] public Transform activeCarrySpot;

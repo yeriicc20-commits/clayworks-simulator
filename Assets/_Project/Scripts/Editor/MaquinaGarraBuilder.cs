@@ -486,8 +486,8 @@ public static class MaquinaGarraBuilder
         // de arrastrar el bamboleo de hace tres segundos.
         claw.swingStiffness = 34f;
         claw.swingDamping = 1.15f;
-        claw.swingTiltAmount = 34f;
-        claw.swingMaxTiltAngle = 28f;
+        claw.swingTiltAmount = 22f;
+        claw.swingMaxTiltAngle = 18f;
 
         // Despacio. Una garra de verdad baja con calma, y ademas es lo que le
         // da al jugador tiempo de ver que va a pasar. A 0,6 m/s parecia un
