@@ -19,8 +19,11 @@ public class Bombilla : MonoBehaviour
     [Tooltip("Empieza encendida.")]
     public bool encendida = true;
 
-    [Tooltip("Color del vidrio encendido, para que se vea el filamento.")]
-    public Color brillo = new Color(1f, 0.90f, 0.68f);
+    [Tooltip("Color de la parte que se ve encendida.")]
+    public Color brillo = new Color(1f, 0.95f, 0.85f);
+
+    [Tooltip("Lo que se ilumina. Vacio = todo el objeto.")]
+    public Renderer[] brillantes;
 
     [Tooltip("Lo que tarda en encenderse del todo.")]
     public float suavizado = 12f;
@@ -33,7 +36,14 @@ public class Bombilla : MonoBehaviour
     {
         if (luz == null) luz = GetComponentInChildren<Light>(true);
 
-        pieles = GetComponentsInChildren<Renderer>(true);
+        // Solo lo que brilla, si se ha dicho cual.
+        //
+        // En la pantalla LED la chapa y el difusor son piezas distintas: sin
+        // esto, encender la luz encenderia tambien la carcasa y la luminaria
+        // entera brillaria como una barra de neon.
+        pieles = brillantes != null && brillantes.Length > 0
+            ? brillantes
+            : GetComponentsInChildren<Renderer>(true);
         bloque = new MaterialPropertyBlock();
     }
 

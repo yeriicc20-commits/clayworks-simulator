@@ -18,8 +18,13 @@ public static class LucesBuilder
     // el prefab esta, se venden.
     const string PREFABS = "Assets/_Project/Resources/Luces/";
 
-    // El radio del bulbo, para colocar la luz dentro de el y no debajo.
-    const float RADIO_BULBO = 0.030f;
+    // Cuanto por debajo de la luminaria va el punto de luz.
+    //
+    // No pegado a ella: la pantalla va contra el techo, y una luz a tres
+    // centimetros del techo lo abrasa y deja la sala igual de oscura que
+    // antes. Un palmo mas abajo reparte, y sigue sin verse porque queda
+    // dentro del cono que tapa la propia carcasa.
+    const float LUZ_DEBAJO = 0.18f;
 
     // Solas al abrir Unity, y solo si faltan.
     //
@@ -31,7 +36,7 @@ public static class LucesBuilder
     {
         EditorApplication.delayCall += () =>
         {
-            if (Falta("Bombilla") || Falta("Interruptor")) Construir();
+            if (Falta("LedTecho") || Falta("Interruptor")) Construir();
         };
     }
 
@@ -50,59 +55,77 @@ public static class LucesBuilder
             AssetDatabase.Refresh();
         }
 
-        GameObject bombilla = ConstruirBombilla();
+        GameObject led = ConstruirLed();
         GameObject interruptor = ConstruirInterruptor();
 
         AssetDatabase.SaveAssets();
 
-        if (bombilla != null && interruptor != null)
+        if (led != null && interruptor != null)
         {
-            Debug.Log("[Luces] Bombilla e interruptor listos y a la venta.");
+            Debug.Log("[Luces] Pantalla LED e interruptor listos.");
         }
     }
 
-    // ------------------------------------------------------------- bombilla
+    // ----------------------------------------------------------- pantalla LED
 
-    static GameObject ConstruirBombilla()
+    static GameObject ConstruirLed()
     {
-        GameObject modelo = Cargar("Bombilla");
+        GameObject modelo = Cargar("LedTecho");
         if (modelo == null) return null;
 
         GameObject raiz = Object.Instantiate(modelo);
-        raiz.name = "Bombilla";
+        raiz.name = "LedTecho";
 
-        // La luz va DENTRO del bulbo, y su sitio se saca del propio modelo.
-        //
-        // Escrita a mano, el dia que se alargue el cable en Blender la luz se
-        // queda arriba y la bombilla baja sin ella. Midiendo el modelo, la luz
-        // va donde este el vidrio por largo que sea el cable.
+        // El punto de luz, por debajo de la luminaria. El sitio se mide del
+        // propio modelo: escrito a mano, cambiar la pantalla en Blender dejaria
+        // la luz metida dentro de la chapa.
         GameObject nodo = new GameObject("Luz");
         nodo.transform.SetParent(raiz.transform, false);
-        nodo.transform.localPosition = new Vector3(0f, FondoDe(raiz) + RADIO_BULBO, 0f);
+        nodo.transform.localPosition = new Vector3(0f, FondoDe(raiz) - LUZ_DEBAJO, 0f);
 
         Light luz = nodo.AddComponent<Light>();
         luz.type = LightType.Point;
-        luz.color = new Color(1f, 0.90f, 0.72f);
+
+        // Blanco frio tirando a neutro, que es de lo que va un LED. La
+        // bombilla de antes era amarilla; una regleta de local no lo es.
+        luz.color = new Color(0.97f, 0.98f, 1f);
+
         // Fuerte y de largo alcance: son 5 m de techo, y con el alcance corto
-        // la luz se apaga antes de llegar al suelo y solo se ve el techo.
-        luz.intensity = 4.5f;
+        // la luz se apaga antes de llegar al suelo.
+        luz.intensity = 4.2f;
         luz.range = 16f;
 
         // Con sombras: sin ellas las maquinas no se apoyan en el suelo y todo
         // parece flotar, que es justo lo que delata a una luz falsa.
         luz.shadows = LightShadows.Soft;
-        luz.shadowStrength = 0.75f;
+        luz.shadowStrength = 0.7f;
 
         Bombilla script = raiz.AddComponent<Bombilla>();
         script.luz = luz;
         script.encendida = true;
+        script.brillo = new Color(1f, 0.98f, 0.92f);
+
+        // Solo el difusor se enciende. Con la chapa dentro, la luminaria
+        // entera brillaria como una barra de neon.
+        Transform difusor = Buscar(raiz.transform, "Difusor");
+
+        if (difusor != null)
+        {
+            script.brillantes = difusor.GetComponents<Renderer>();
+        }
+        else
+        {
+            Debug.LogWarning("[Luces] La pantalla no trae la pieza 'Difusor' "
+                             + "suelta: se encendera entera. Vuelve a exportar "
+                             + "Modelos/led.py.");
+        }
 
         ReglaDeColocacion regla = raiz.AddComponent<ReglaDeColocacion>();
         regla.donde = ReglaDeColocacion.Donde.Techo;
 
         Colisionador(raiz);
 
-        return Guardar(raiz, "Bombilla");
+        return Guardar(raiz, "LedTecho");
     }
 
     // ---------------------------------------------------------- interruptor

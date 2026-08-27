@@ -108,7 +108,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Interruptor
   alcance: 2.2
-  precisionMirada: 0.9
+  precisionMirada: 0.82
   tecla: {fileID: 5581548392450880996}
   recorrido: 11
   suavizado: 16

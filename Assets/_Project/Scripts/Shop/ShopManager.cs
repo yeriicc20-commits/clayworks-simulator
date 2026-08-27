@@ -255,21 +255,22 @@ public class ShopManager : MonoBehaviour
     {
         List<DecoShopItem> lista = new List<DecoShopItem>();
 
-        // Solo bombillas. El interruptor ya esta puesto en el local y con uno
-        // basta: enciende y apaga todas las luces, asi que un segundo no haria
-        // nada que no haga el primero.
-        AnadirDeco(lista, "Bombilla", 45);
+        // Solo luces. El interruptor ya esta puesto en el local y con uno
+        // basta: enciende y apaga todas, asi que un segundo no haria nada que
+        // no haga el primero.
+        AnadirDeco(lista, "Pantalla LED", "LedTecho", 45);
 
         return lista.ToArray();
     }
 
-    void AnadirDeco(List<DecoShopItem> lista, string nombre, int precio)
+    void AnadirDeco(List<DecoShopItem> lista, string nombre, string prefabName,
+                    int precio)
     {
-        GameObject prefab = Resources.Load<GameObject>("Luces/" + nombre);
+        GameObject prefab = Resources.Load<GameObject>("Luces/" + prefabName);
 
         if (prefab == null)
         {
-            Debug.LogWarning("[ShopManager] Falta el prefab de " + nombre
+            Debug.LogWarning("[ShopManager] Falta el prefab de " + prefabName
                              + " en Resources/Luces. Pasa por ClayWorks >"
                              + " Construir luces.", this);
             return;
