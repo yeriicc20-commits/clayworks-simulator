@@ -83,19 +83,30 @@ public static class LucesBuilder
         nodo.transform.SetParent(raiz.transform, false);
         nodo.transform.localPosition = new Vector3(0f, FondoDe(raiz) - LUZ_DEBAJO, 0f);
 
+        // Un foco apuntando al suelo, y no una luz de punto.
+        //
+        // Una luz de punto emite en todas las direcciones, tambien hacia
+        // arriba: dibujaba un redondel brillante en el techo justo encima de
+        // la regleta, que es lo que se veia raro. Una regleta de verdad no
+        // manda luz hacia arriba, y un foco tampoco.
+        //
+        // Muy abierto -- 130 grados -- para que reparta por la sala en vez de
+        // hacer un circulito de discoteca debajo.
+        nodo.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+
         Light luz = nodo.AddComponent<Light>();
-        luz.type = LightType.Point;
+        luz.type = LightType.Spot;
+        luz.spotAngle = 130f;
+        luz.innerSpotAngle = 70f;
 
         // Blanco frio tirando a neutro, que es de lo que va un LED. La
         // bombilla de antes era amarilla; una regleta de local no lo es.
         luz.color = new Color(0.97f, 0.98f, 1f);
 
-        // Fuerte y de largo alcance: son 5 m de techo, y con el alcance corto
-        // la luz se apaga antes de llegar al suelo.
-        // Suave. Un punto de luz muy fuerte pegado al techo hace un charco
-        // duro justo debajo y deja el resto oscuro, que no se parece nada a
-        // una regleta: la de verdad reparte a lo largo.
-        luz.intensity = 2.6f;
+        // Alcance largo, que son 5 m de techo: con el corto la luz se apaga
+        // antes de llegar al suelo. Y un foco reparte su fuerza dentro del cono,
+        // asi que necesita mas numero que una luz de punto para dar lo mismo.
+        luz.intensity = 5.5f;
         luz.range = 14f;
 
         // Con sombras: sin ellas las maquinas no se apoyan en el suelo y todo
@@ -137,6 +148,9 @@ public static class LucesBuilder
         ReglaDeColocacion regla = raiz.AddComponent<ReglaDeColocacion>();
         regla.donde = ReglaDeColocacion.Donde.Techo;
 
+        Recolocable mover = raiz.AddComponent<Recolocable>();
+        mover.queEs = "la pantalla";
+
         Colisionador(raiz);
 
         return Guardar(raiz, "LedTecho");
@@ -170,6 +184,13 @@ public static class LucesBuilder
         // Un pelo separado, que pegado del todo al muro los dos planos pelean por
         // el mismo pixel y sale un parpadeo.
         regla.separacion = 0.002f;
+
+        // Tambien se puede recoger. Pero con el boton de tirar, no con el de
+        // usar: usar es lo que enciende la luz, y compartir tecla lo dejaria
+        // imposible de encender sin acabar moviendolo.
+        Recolocable mover = raiz.AddComponent<Recolocable>();
+        mover.queEs = "el interruptor";
+        mover.conTeclaDeTirar = true;
 
         Colisionador(raiz);
 

@@ -51,7 +51,7 @@ public class Interruptor : MonoBehaviour
     {
         Mover();
 
-        if (!ApuntandoAqui()) return;
+        if (!Apuntado.A(transform, ref camara, alcance)) return;
 
         bool encendidas = Bombilla.AlgunaEncendida();
 
@@ -65,50 +65,6 @@ public class Interruptor : MonoBehaviour
         Bombilla.EncenderTodas(!encendidas);
 
         lado = encendidas ? -1f : 1f;
-    }
-
-    // Un rayo desde el centro de la pantalla, y si toca esto, es que lo miras.
-    //
-    // Antes esto era distancia mas angulo, y estaba mal de dos maneras: la
-    // direccion salia de los PIES del jugador y se comparaba con hacia donde
-    // mira la CAMARA, metro y medio mas arriba, asi que con un interruptor a la
-    // altura del pecho no se cumplia nunca. Y para arreglarlo hacia falta que
-    // cameraTransform tuviera un componente Camera, cosa que nadie garantiza.
-    //
-    // El rayo no tiene ninguno de esos problemas y ademas es lo que el jugador
-    // cree que esta haciendo: apuntar. De regalo, una pared por delante tapa el
-    // interruptor, que con el angulo se pulsaba a traves de ella.
-    bool ApuntandoAqui()
-    {
-        if (CursorMode.FreeCursor) return false;
-        if (!BuscarCamara()) return false;
-
-        RaycastHit toque;
-
-        if (!Physics.Raycast(camara.position, camara.forward, out toque, alcance,
-                             ~0, QueryTriggerInteraction.Ignore))
-        {
-            return false;
-        }
-
-        // Vale tambien si toca una pieza hija, como la tecla.
-        return toque.collider.transform == transform
-               || toque.collider.transform.IsChildOf(transform);
-    }
-
-    bool BuscarCamara()
-    {
-        if (camara != null) return true;
-
-        FirstPersonController fpc = FindAnyObjectByType<FirstPersonController>();
-
-        // Por este orden: la que el jugador tenga puesta, y si no la principal.
-        // No se pide el componente Camera, solo el sitio desde el que se mira:
-        // pedirlo era justo lo que dejaba esto sin funcionar.
-        if (fpc != null && fpc.cameraTransform != null) camara = fpc.cameraTransform;
-        else if (Camera.main != null) camara = Camera.main.transform;
-
-        return camara != null;
     }
 
     void Mover()
