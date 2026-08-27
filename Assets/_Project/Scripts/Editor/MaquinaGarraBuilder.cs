@@ -484,10 +484,10 @@ public static class MaquinaGarraBuilder
         // de 22 a 55 hace el vaiven casi vez y media mas rapido. Y con mas
         // amortiguacion no se vuelve mas lento: responde antes al mando y deja
         // de arrastrar el bamboleo de hace tres segundos.
-        claw.swingStiffness = 55f;
-        claw.swingDamping = 3.5f;
-        claw.swingTiltAmount = 32f;
-        claw.swingMaxTiltAngle = 34f;
+        claw.swingStiffness = 34f;
+        claw.swingDamping = 1.15f;
+        claw.swingTiltAmount = 50f;
+        claw.swingMaxTiltAngle = 40f;
 
         // Despacio. Una garra de verdad baja con calma, y ademas es lo que le
         // da al jugador tiempo de ver que va a pasar. A 0,6 m/s parecia un

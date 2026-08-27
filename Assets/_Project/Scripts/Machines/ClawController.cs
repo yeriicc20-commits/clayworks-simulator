@@ -212,12 +212,37 @@ public class ClawController : MonoBehaviour
     [Tooltip("Collider mas grande que se le permite a una pieza de la garra, en metros.")]
     public float maxClawColliderSize = 0.35f;
 
-    [Header("Balanceo (Swing) - sustituido por el cable fisico")]
+    [Header("Balanceo de la garra")]
+
+    // Esto NO esta sustituido por el cable fisico, aunque lo pusiera aqui.
+    // El cable viene apagado (usePhysicalCable = false), asi que el vaiven
+    // que se ve en el juego sale de estos cuatro numeros.
+    //
+    // Es un muelle amortiguado de toda la vida:
+    //
+    //   fuerza = -rigidez * (inclinacion - objetivo) - amortiguacion * velocidad
+    //
+    // y de ahi salen las dos cosas que se notan. La rigidez marca lo rapido
+    // que va: el periodo es 2*PI/raiz(rigidez), o sea 1,08 s con 34. Y la
+    // amortiguacion marca lo que aguanta: se apaga como e^(-amortiguacion/2 * t),
+    // asi que con 1,15 tarda unos 4 s en quedarse quieta.
+    //
+    // Subir la amortiguacion lo para antes; bajarla lo alarga. Pasar de 11,7
+    // -- que es 2*raiz(34) -- lo dejaria sin vaiven: volveria a la vertical
+    // de un tiron y sin pasarse.
     public bool enableSwing = true;
-    public float swingStiffness = 30f;
-    public float swingDamping = 5f;
-    public float swingTiltAmount = 9f;
-    public float swingMaxTiltAngle = 20f;
+
+    [Tooltip("Lo rapido que oscila. Mas alto = mas tieso y menos amplio.")]
+    public float swingStiffness = 34f;
+
+    [Tooltip("Lo que aguanta el vaiven. Mas alto = se para antes.")]
+    public float swingDamping = 1.15f;
+
+    [Tooltip("Cuanto se tuerce por cada unidad de velocidad del carro.")]
+    public float swingTiltAmount = 50f;
+
+    [Tooltip("Tope de inclinacion que persigue, en grados.")]
+    public float swingMaxTiltAngle = 40f;
 
     [HideInInspector] public bool isControllable = false;
     [HideInInspector] public Transform activeCarrySpot;
