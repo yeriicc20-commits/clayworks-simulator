@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1484e6e2e76518c4fb3b70199ec3bc11, type: 3}
+  m_Name: Dificultad_Facil
+  m_EditorClassIdentifier: Assembly-CSharp::Hashi.DifficultySettings
+  nombre: Facil
+  notas: Barras muy separadas (la caja apoya por los pelos), pinza fuerte y lenta,
+    caja mas ligera y con el centro de masas un poco alto. Todo empuja hacia que
+    vuelque.
+  clawGripForce: 0.75
+  clawCloseSpeed: 90
+  clawMoveSpeed: 0.17
+  dropSpeed: 0.28
+  riseSpeed: 0.35
+  prizeMass: 0.75
+  prizeFriction: 0.85
+  centerOfMassOffset: {x: 0, y: 0.008, z: 0}
+  barDistance: 0.19
+  turnTime: 30

@@ -18,12 +18,12 @@ TagManager:
   - ClawParts
   - MachineShell
   - PlayerBody
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - Machine
+  - Glass
+  - Claw
+  - Prize
+  - Bars
+  - DropZone
   - 
   - 
   - 

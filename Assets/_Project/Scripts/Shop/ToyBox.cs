@@ -30,7 +30,7 @@ public class ToyBox : CarriableBox
             return false;
         }
 
-        ClawController machine = AimedMachine();
+        Component machine = AimedMachine();
         if (machine == null) return false;
 
         insertTimer -= Time.deltaTime;
@@ -44,7 +44,10 @@ public class ToyBox : CarriableBox
         return true;
     }
 
-    ClawController AimedMachine()
+    // Vale cualquiera de las dos maquinas del local. Devuelve el componente que
+    // haya encontrado y quien lo use ya decide como meterle el juguete: la de
+    // garra los echa dentro a monton, la de puente admite uno solo.
+    Component AimedMachine()
     {
         Camera cam = Camera.main;
         if (cam == null) return null;
@@ -54,12 +57,58 @@ public class ToyBox : CarriableBox
         RaycastHit hit;
         if (!Physics.Raycast(ray, out hit, insertDistance, ~0, QueryTriggerInteraction.Ignore)) return null;
 
-        return hit.collider.GetComponentInParent<ClawController>();
+        ClawController garra = hit.collider.GetComponentInParent<ClawController>();
+        if (garra != null) return garra;
+
+        // La de puente no se busca hacia arriba, sino desde la RAIZ hacia abajo.
+        //
+        // Su PrizeSpawner vive en PrizeArea, que es hermano del cristal y del
+        // faldon, no antepasado suyo: mirando hacia arriba desde lo que toca el
+        // rayo no aparece nunca, y el clic se quedaba sin hacer nada. En la de
+        // garra funciona de casualidad, porque su controlador si esta en la raiz.
+        Transform raiz = hit.collider.transform.root;
+
+        return raiz != null
+            ? raiz.GetComponentInChildren<Hashi.PrizeSpawner>(true)
+            : null;
     }
 
-    void InsertOne(ClawController machine, BoxCarrier carrier)
+    void InsertOne(Component machine, BoxCarrier carrier)
     {
-        machine.SpawnToyInside(toyPrefab);
+        // La de puente solo admite un premio a la vez, y hay que enterarse ANTES
+        // de descontarlo de la caja: si no, cada clic sobre una maquina llena se
+        // comeria un juguete sin meter nada.
+        if (machine is Hashi.PrizeSpawner barras)
+        {
+            if (!barras.MeterPremio(toyPrefab, out string motivo))
+            {
+                NotificationManager.Nota(motivo);
+                return;
+            }
+        }
+        else if (machine is ClawController garra)
+        {
+            // Cada maquina admite lo suyo y nada mas. Un peluche no se sostiene
+            // sobre dos barras y una caja de figura no hay quien la levante con
+            // tres dedos: metidos donde no toca, el juguete no es que sea
+            // dificil de sacar, es que la maquina deja de funcionar y parece
+            // rota.
+            //
+            // La de puente ya se defendia sola dentro de MeterPremio; esta no,
+            // y se tragaba lo que le echaran.
+            if (toyPrefab == null || toyPrefab.GetComponent<PlushItem>() == null)
+            {
+                NotificationManager.Nota("Esto no va en la maquina de garra");
+                return;
+            }
+
+            garra.SpawnToyInside(toyPrefab);
+        }
+        else
+        {
+            return;
+        }
+
         toyCount--;
 
         if (toyCount <= 0)
@@ -69,7 +118,7 @@ public class ToyBox : CarriableBox
         }
         else
         {
-            NotificationManager.Nota("Peluches restantes: " + toyCount);
+            NotificationManager.Nota("Quedan " + toyCount + " en la caja");
         }
     }
 }

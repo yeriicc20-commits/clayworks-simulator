@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1484e6e2e76518c4fb3b70199ec3bc11, type: 3}
+  m_Name: Dificultad_Dificil
+  m_EditorClassIdentifier: Assembly-CSharp::Hashi.DifficultySettings
+  nombre: Dificil
+  notas: 'Barras mas juntas: la caja apoya con mas margen y hay que girarla mas.
+    La pinza cierra rapido y con poco par, asi que da un toque en vez de empujar.'
+  clawGripForce: 0.32
+  clawCloseSpeed: 160
+  clawMoveSpeed: 0.3
+  dropSpeed: 0.35
+  riseSpeed: 0.4
+  prizeMass: 1.35
+  prizeFriction: 1.15
+  centerOfMassOffset: {x: 0, y: -0.01, z: 0}
+  barDistance: 0.158
+  turnTime: 15

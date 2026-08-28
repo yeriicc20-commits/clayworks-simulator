@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1484e6e2e76518c4fb3b70199ec3bc11, type: 3}
+  m_Name: Dificultad_Extremo
+  m_EditorClassIdentifier: Assembly-CSharp::Hashi.DifficultySettings
+  nombre: Extremo
+  notas: Casi el doble de masa, centro de masas hundido y el hueco justo. Con la
+    caja Pesada aqui hacen falta muchos intentos seguidos bien colocados.
+  clawGripForce: 0.22
+  clawCloseSpeed: 210
+  clawMoveSpeed: 0.38
+  dropSpeed: 0.42
+  riseSpeed: 0.5
+  prizeMass: 1.8
+  prizeFriction: 1.3
+  centerOfMassOffset: {x: 0, y: -0.018, z: 0}
+  barDistance: 0.15
+  turnTime: 12

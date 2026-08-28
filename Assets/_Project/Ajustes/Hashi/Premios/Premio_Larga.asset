@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ba86db09ca2a30c489c10e14ae104465, type: 3}
+  m_Name: Premio_Larga
+  m_EditorClassIdentifier: Assembly-CSharp::Hashi.PrizeDefinition
+  nombre: Larga
+  notas: 'Larga a lo largo de las barras, o sea mucha inercia para girarla sobre
+    la vertical, que es el giro que hace falta. Apretarla por el centro no sirve
+    de nada: hay que pillarla de un extremo para sacarle par.'
+  size: {x: 0.24, y: 0.11, z: 0.22}
+  mass: 0.55
+  linearDamping: 0.02
+  angularDamping: 0.06
+  centerOfMassOffset: {x: 0, y: 0, z: 0}
+  friction: 0.45
+  bounciness: 0.02
+  color: {r: 0.85, g: 0.55, b: 0.2, a: 1}
+  ilustracion: {fileID: 0}

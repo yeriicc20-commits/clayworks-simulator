@@ -172,6 +172,13 @@ public static class IconosTienda
 
         if (tienda == null) return;
 
+        // Con el juego en marcha no se toca la escena. MarkSceneDirty lanza
+        // InvalidOperationException en modo de juego, y ademas no serviria de
+        // nada: al salir del Play la escena se restaura de su copia y cualquier
+        // cambio se pierde. Salta cada vez que se anade una ficha nueva y se le
+        // da a Play antes de que le haya sacado la foto.
+        if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+
         EditorUtility.SetDirty(tienda);
         EditorSceneManager.MarkSceneDirty(tienda.gameObject.scene);
 
